@@ -1,0 +1,32 @@
+## .NET / Visual Studio
+bin/
+obj/
+build/
+publish/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+*.nupkg
+*.snupkg
+
+## v2ray-core binaries (download separately)
+src/SecureGateway/v2ray-core/
+
+## IDE
+.idea/
+.vscode/
+*.swp
+
+## OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+## Logs
+*.log
+logs/
+
+## User config (may contain credentials)
+%APPDATA%/SecureGateway/
