@@ -11,9 +11,6 @@ publish/
 *.nupkg
 *.snupkg
 
-## v2ray-core binaries (download separately)
-src/SecureGateway/v2ray-core/
-
 ## IDE
 .idea/
 .vscode/
