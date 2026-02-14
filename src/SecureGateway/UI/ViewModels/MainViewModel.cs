@@ -42,8 +42,6 @@ namespace SecureGateway.UI.ViewModels
         private bool _autoConnect;
         private bool _minimizeToTray;
 
-        // Log
-        private string _selectedLogText = "";
 
         public ObservableCollection<ServerProfile> Servers { get; } = new();
         public ObservableCollection<string> LogEntries { get; } = new();
