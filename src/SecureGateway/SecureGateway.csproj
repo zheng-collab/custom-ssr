@@ -27,9 +27,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="v2ray-core\**">
+    <Content Include="v2ray-core\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
   </ItemGroup>
 
 </Project>
