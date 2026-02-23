@@ -22,6 +22,7 @@
     <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="1.1.0" />
     <PackageReference Include="Microsoft.Toolkit.Mvvm" Version="7.1.2" />
     <PackageReference Include="NLog" Version="5.2.8" />
+    <PackageReference Include="Supabase" Version="1.1.1" />
   </ItemGroup>
 
   <ItemGroup>

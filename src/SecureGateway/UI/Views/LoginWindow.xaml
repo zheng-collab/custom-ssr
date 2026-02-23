@@ -1,0 +1,122 @@
+<Window x:Class="SecureGateway.UI.Views.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SecureGateway - Sign In" Height="520" Width="400"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+        Background="#1E1E2E">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,36,0,0">
+            <!-- Shield icon area -->
+            <Border Width="64" Height="64" CornerRadius="32" Background="#313244"
+                    HorizontalAlignment="Center" Margin="0,0,0,16">
+                <TextBlock Text="&#x1F6E1;" FontSize="30" HorizontalAlignment="Center"
+                           VerticalAlignment="Center" Foreground="#89B4FA"/>
+            </Border>
+            <TextBlock Text="SecureGateway" FontSize="24" FontWeight="Bold"
+                       Foreground="#CDD6F4" HorizontalAlignment="Center"/>
+            <TextBlock Text="Enterprise VPN Client" FontSize="13"
+                       Foreground="#A6ADC8" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <!-- Login Form -->
+        <Border Grid.Row="1" Margin="32,24,32,32" Padding="24"
+                Background="#313244" CornerRadius="12">
+            <StackPanel>
+                <!-- Tab: Sign In / Sign Up -->
+                <Grid Margin="0,0,0,20">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="BtnSignInTab" Grid.Column="0" Content="Sign In"
+                            Background="#89B4FA" Foreground="#1E1E2E" FontWeight="SemiBold"
+                            FontSize="13" Height="36" BorderThickness="0" Cursor="Hand"
+                            Click="OnSignInTabClick">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                        CornerRadius="6,0,0,6" Padding="12,6">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                    <Button x:Name="BtnSignUpTab" Grid.Column="1" Content="Sign Up"
+                            Background="#45475A" Foreground="#A6ADC8"
+                            FontSize="13" Height="36" BorderThickness="0" Cursor="Hand"
+                            Click="OnSignUpTabClick">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                        CornerRadius="0,6,6,0" Padding="12,6">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </Grid>
+
+                <!-- Email -->
+                <TextBlock Text="Email" Foreground="#CDD6F4" FontSize="13" Margin="0,0,0,6"/>
+                <TextBox x:Name="TxtEmail" Height="38" FontSize="14"
+                         Background="#1E1E2E" Foreground="#CDD6F4" BorderBrush="#45475A"
+                         Padding="10,8" CaretBrush="#CDD6F4"
+                         KeyDown="OnInputKeyDown"/>
+
+                <!-- Password -->
+                <TextBlock Text="Password" Foreground="#CDD6F4" FontSize="13" Margin="0,14,0,6"/>
+                <PasswordBox x:Name="TxtPassword" Height="38" FontSize="14"
+                             Background="#1E1E2E" Foreground="#CDD6F4" BorderBrush="#45475A"
+                             Padding="10,8" CaretBrush="#CDD6F4"
+                             KeyDown="OnInputKeyDown"/>
+
+                <!-- Confirm Password (for sign up) -->
+                <TextBlock x:Name="LblConfirmPassword" Text="Confirm Password" Foreground="#CDD6F4"
+                           FontSize="13" Margin="0,14,0,6" Visibility="Collapsed"/>
+                <PasswordBox x:Name="TxtConfirmPassword" Height="38" FontSize="14"
+                             Background="#1E1E2E" Foreground="#CDD6F4" BorderBrush="#45475A"
+                             Padding="10,8" CaretBrush="#CDD6F4" Visibility="Collapsed"
+                             KeyDown="OnInputKeyDown"/>
+
+                <!-- Error/Status message -->
+                <TextBlock x:Name="TxtStatus" Text="" TextWrapping="Wrap"
+                           Foreground="#F38BA8" FontSize="12" Margin="0,12,0,0"/>
+
+                <!-- Submit Button -->
+                <Button x:Name="BtnSubmit" Content="Sign In" Height="42" FontSize="15"
+                        FontWeight="SemiBold" Margin="0,18,0,0" Cursor="Hand"
+                        Background="#89B4FA" Foreground="#1E1E2E" BorderThickness="0"
+                        Click="OnSubmitClick">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                    CornerRadius="8" Padding="12,8">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="#74A8F7"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Opacity" Value="0.5"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+
+                <!-- Loading indicator -->
+                <TextBlock x:Name="TxtLoading" Text="Authenticating..."
+                           Foreground="#A6ADC8" FontSize="12" HorizontalAlignment="Center"
+                           Margin="0,8,0,0" Visibility="Collapsed"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

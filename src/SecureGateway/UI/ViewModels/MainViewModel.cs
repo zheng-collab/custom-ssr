@@ -42,6 +42,8 @@ namespace SecureGateway.UI.ViewModels
         private bool _autoConnect;
         private bool _minimizeToTray;
 
+        // Auth
+        private string _userEmail = "";
 
         public ObservableCollection<ServerProfile> Servers { get; } = new();
         public ObservableCollection<string> LogEntries { get; } = new();
@@ -102,6 +104,12 @@ namespace SecureGateway.UI.ViewModels
         {
             get => _connectionDuration;
             set => SetProperty(ref _connectionDuration, value);
+        }
+
+        public string UserEmail
+        {
+            get => _userEmail;
+            set => SetProperty(ref _userEmail, value);
         }
 
         public ProxyMode ProxyMode

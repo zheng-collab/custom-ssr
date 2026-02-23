@@ -121,11 +121,18 @@
                 <TextBlock Grid.Column="1" Text="{Binding StatusText}" VerticalAlignment="Center"
                            HorizontalAlignment="Center" Foreground="#A6ADC8" FontSize="13"/>
 
-                <!-- Connect button -->
-                <Button Grid.Column="2" Style="{StaticResource ConnectButton}"
-                        Command="{Binding ToggleConnectionCommand}"
-                        Content="{Binding IsConnected, Converter={StaticResource BoolToConnectText}}"
-                        Background="{Binding IsConnected, Converter={StaticResource BoolToColor}}"/>
+                <!-- User info + Connect -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding UserEmail}" Foreground="#A6ADC8" FontSize="12"
+                               VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <Button Content="Sign Out" Style="{StaticResource ModernButton}"
+                            Click="OnLogoutClick" Padding="10,6" FontSize="11"
+                            VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <Button Style="{StaticResource ConnectButton}"
+                            Command="{Binding ToggleConnectionCommand}"
+                            Content="{Binding IsConnected, Converter={StaticResource BoolToConnectText}}"
+                            Background="{Binding IsConnected, Converter={StaticResource BoolToColor}}"/>
+                </StackPanel>
             </Grid>
         </Border>
 
@@ -380,7 +387,8 @@
                 </StackPanel>
 
                 <TextBlock Grid.Column="2" Foreground="#6C7086" FontSize="11">
-                    <Run Text="SecureGateway v1.0.0"/>
+                    <Run Text="{Binding UserEmail, Mode=OneWay}"/>
+                    <Run Text=" | SecureGateway v1.0.0"/>
                 </TextBlock>
             </Grid>
         </Border>

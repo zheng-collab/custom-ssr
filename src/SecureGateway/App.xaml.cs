@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Threading;
 using System.Windows;
+using SecureGateway.Services;
 using SecureGateway.UI.Views;
 
 namespace SecureGateway
@@ -11,8 +12,9 @@ namespace SecureGateway
         private System.Windows.Forms.NotifyIcon _trayIcon;
         private MainWindow _mainWindow;
         private Mutex _mutex;
+        private AuthService _authService;
 
-        protected override void OnStartup(StartupEventArgs e)
+        protected override async void OnStartup(StartupEventArgs e)
         {
             // Single instance check
             const string mutexName = "SecureGateway_SingleInstance_Mutex";
@@ -35,7 +37,35 @@ namespace SecureGateway
                     startMinimized = true;
             }
 
-            _mainWindow = new MainWindow(startMinimized);
+            // Initialize auth service
+            _authService = new AuthService();
+            try
+            {
+                await _authService.InitializeAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to initialize authentication:\n{ex.Message}",
+                    "SecureGateway", MessageBoxButton.OK, MessageBoxImage.Error);
+                Shutdown();
+                return;
+            }
+
+            // If not already authenticated (no saved session), show login
+            if (!_authService.IsAuthenticated)
+            {
+                var loginWindow = new LoginWindow(_authService);
+                var result = loginWindow.ShowDialog();
+
+                if (result != true || !loginWindow.IsAuthenticated)
+                {
+                    Shutdown();
+                    return;
+                }
+            }
+
+            // Authenticated - launch main window
+            _mainWindow = new MainWindow(startMinimized, _authService);
             MainWindow = _mainWindow;
 
             SetupTrayIcon();
@@ -58,7 +88,6 @@ namespace SecureGateway
             {
                 g.Clear(Color.Transparent);
                 using var brush = new SolidBrush(Color.FromArgb(76, 175, 80));
-                // Draw a simple shield shape
                 var points = new System.Drawing.Point[]
                 {
                     new(8, 1), new(14, 4), new(14, 9), new(8, 15), new(2, 9), new(2, 4)

@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Windows;
+using SecureGateway.Services;
 using SecureGateway.UI.ViewModels;
 
 namespace SecureGateway.UI.Views
@@ -8,6 +9,7 @@ namespace SecureGateway.UI.Views
     public partial class MainWindow : Window
     {
         private readonly MainViewModel _viewModel;
+        private readonly AuthService _authService;
         private bool _forceClose;
 
         public MainWindow()
@@ -16,7 +18,6 @@ namespace SecureGateway.UI.Views
             _viewModel = new MainViewModel();
             DataContext = _viewModel;
 
-            // Auto-scroll log
             _viewModel.LogEntries.CollectionChanged += (s, e) =>
             {
                 if (LogListBox.Items.Count > 0)
@@ -24,8 +25,11 @@ namespace SecureGateway.UI.Views
             };
         }
 
-        public MainWindow(bool startMinimized) : this()
+        public MainWindow(bool startMinimized, AuthService authService) : this()
         {
+            _authService = authService;
+            _viewModel.UserEmail = authService.UserEmail;
+
             if (startMinimized)
             {
                 WindowState = WindowState.Minimized;
@@ -40,12 +44,50 @@ namespace SecureGateway.UI.Views
 
             if (_viewModel.AutoConnect)
             {
-                // Auto-connect after a brief delay
                 Dispatcher.InvokeAsync(async () =>
                 {
                     await System.Threading.Tasks.Task.Delay(500);
                     _viewModel.ToggleConnectionCommand.Execute(null);
                 });
+            }
+        }
+
+        private async void OnLogoutClick(object sender, RoutedEventArgs e)
+        {
+            var result = MessageBox.Show(
+                "Sign out and return to the login screen?",
+                "Sign Out",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result != MessageBoxResult.Yes) return;
+
+            // Disconnect VPN first
+            if (_viewModel.IsConnected)
+            {
+                _viewModel.ToggleConnectionCommand.Execute(null);
+                await System.Threading.Tasks.Task.Delay(500);
+            }
+
+            if (_authService != null)
+                await _authService.SignOutAsync();
+
+            _viewModel.Dispose();
+
+            // Show login window again
+            var loginWindow = new LoginWindow(_authService ?? new AuthService());
+            var loginResult = loginWindow.ShowDialog();
+
+            if (loginResult == true && loginWindow.IsAuthenticated)
+            {
+                // Re-authenticated, update user info
+                _viewModel.UserEmail = _authService?.UserEmail ?? "";
+            }
+            else
+            {
+                // User cancelled login, exit app
+                _forceClose = true;
+                Application.Current.Shutdown();
             }
         }
 
