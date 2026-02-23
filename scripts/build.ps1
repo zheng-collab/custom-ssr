@@ -60,17 +60,22 @@ if ($Publish) {
         exit 1
     }
 
-    # Create v2ray-core directory in publish output
-    $v2rayDir = Join-Path $PublishDir "v2ray-core"
-    if (-not (Test-Path $v2rayDir)) {
-        New-Item -ItemType Directory -Path $v2rayDir | Out-Null
-        Write-Host "  Created v2ray-core directory. Place v2ray.exe here." -ForegroundColor Yellow
+    # Ensure v2ray-core files are in the publish output
+    $v2raySrc = Join-Path $ProjectDir "v2ray-core"
+    $v2rayDst = Join-Path $PublishDir "v2ray-core"
+
+    if (Test-Path $v2raySrc) {
+        if (-not (Test-Path $v2rayDst)) {
+            New-Item -ItemType Directory -Path $v2rayDst | Out-Null
+        }
+        Copy-Item -Path "$v2raySrc\*" -Destination $v2rayDst -Recurse -Force
+        Write-Host "  Copied v2ray-core files to publish output." -ForegroundColor Green
+    } else {
+        Write-Host "  WARNING: v2ray-core not found at $v2raySrc" -ForegroundColor Red
+        Write-Host "  Run scripts\setup-v2ray.ps1 first, then rebuild." -ForegroundColor Yellow
     }
 
     Write-Host "  Published to: $PublishDir" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "  IMPORTANT: Download v2ray-core and place v2ray.exe in:" -ForegroundColor Yellow
-    Write-Host "  $v2rayDir" -ForegroundColor White
 }
 
 Write-Host ""

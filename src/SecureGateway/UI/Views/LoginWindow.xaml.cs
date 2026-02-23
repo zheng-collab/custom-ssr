@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
@@ -71,6 +72,7 @@ namespace SecureGateway.UI.Views
             BtnSubmit.Content = "Sign In";
             LblConfirmPassword.Visibility = Visibility.Collapsed;
             TxtConfirmPassword.Visibility = Visibility.Collapsed;
+            LnkForgotPassword.Visibility = Visibility.Visible;
             TxtStatus.Text = "";
             UpdateLockoutUI();
         }
@@ -85,8 +87,18 @@ namespace SecureGateway.UI.Views
             BtnSubmit.Content = "Create Account";
             LblConfirmPassword.Visibility = Visibility.Visible;
             TxtConfirmPassword.Visibility = Visibility.Visible;
+            LnkForgotPassword.Visibility = Visibility.Collapsed;
             TxtStatus.Text = "";
             UpdateLockoutUI();
+        }
+
+        private void OnForgotPasswordClick(object sender, MouseButtonEventArgs e)
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://fourthzodiac.com/forgot-password",
+                UseShellExecute = true
+            });
         }
 
         private void OnInputKeyDown(object sender, KeyEventArgs e)
