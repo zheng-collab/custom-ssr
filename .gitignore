@@ -27,3 +27,7 @@ logs/
 
 ## User config (may contain credentials)
 %APPDATA%/SecureGateway/
+
+
+#Ignore vscode AI rules
+.github\instructions\codacy.instructions.md
