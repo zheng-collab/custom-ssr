@@ -94,6 +94,11 @@
                            Foreground="#FAB387" FontSize="12" HorizontalAlignment="Center"
                            Margin="0,8,0,0" Visibility="Collapsed"/>
 
+                <!-- Remember me -->
+                <CheckBox x:Name="ChkRememberMe" Content="Remember me"
+                          Foreground="#A6ADC8" FontSize="12" Margin="0,14,0,0"
+                          VerticalContentAlignment="Center" Cursor="Hand"/>
+
                 <!-- Submit Button -->
                 <Button x:Name="BtnSubmit" Content="Sign In" Height="42" FontSize="15"
                         FontWeight="SemiBold" Margin="0,18,0,0" Cursor="Hand"

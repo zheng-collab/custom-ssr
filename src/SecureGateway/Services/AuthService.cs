@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Supabase;
@@ -12,10 +14,14 @@ namespace SecureGateway.Services
     {
         private const string SupabaseUrl = "https://yahzzatmmmdmwalindai.supabase.co";
         private const string SupabaseAnonKey = "sb_publishable_XBgu5qAbVb2CcV1ynhbWMg_njzj972c";
+        private const int SessionMaxDays = 120;
 
-        private static readonly string TokenFile = Path.Combine(
+        private static readonly string AppDataDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "SecureGateway", "auth_session.json");
+            "SecureGateway");
+
+        private static readonly string TokenFile = Path.Combine(AppDataDir, "auth_session.json");
+        private static readonly string CredentialsFile = Path.Combine(AppDataDir, "saved_credentials.dat");
 
         private Supabase.Client _client;
 
@@ -34,11 +40,10 @@ namespace SecureGateway.Services
             _client = new Supabase.Client(SupabaseUrl, SupabaseAnonKey, options);
             await _client.InitializeAsync();
 
-            // Try to restore a previous session
             await TryRestoreSessionAsync();
         }
 
-        public async Task<AuthResult> SignInAsync(string email, string password)
+        public async Task<AuthResult> SignInAsync(string email, string password, bool rememberMe = false)
         {
             try
             {
@@ -47,6 +52,12 @@ namespace SecureGateway.Services
                 if (session != null)
                 {
                     await SaveSessionAsync(session);
+
+                    if (rememberMe)
+                        SaveCredentials(email, password);
+                    else
+                        ClearCredentials();
+
                     return AuthResult.Success(session.User?.Email ?? email);
                 }
 
@@ -104,6 +115,60 @@ namespace SecureGateway.Services
             }
 
             ClearSavedSession();
+            ClearCredentials();
+        }
+
+        /// <summary>
+        /// Load saved credentials (email + password) protected by Windows DPAPI.
+        /// Returns null if none saved or decryption fails.
+        /// </summary>
+        public SavedCredentials LoadCredentials()
+        {
+            try
+            {
+                if (!File.Exists(CredentialsFile)) return null;
+
+                var encryptedBytes = File.ReadAllBytes(CredentialsFile);
+                var decryptedBytes = ProtectedData.Unprotect(
+                    encryptedBytes, null, DataProtectionScope.CurrentUser);
+                var json = Encoding.UTF8.GetString(decryptedBytes);
+                return JsonConvert.DeserializeObject<SavedCredentials>(json);
+            }
+            catch
+            {
+                // Decryption failed or file corrupt — clear it
+                ClearCredentials();
+                return null;
+            }
+        }
+
+        public bool HasSavedCredentials => File.Exists(CredentialsFile);
+
+        private void SaveCredentials(string email, string password)
+        {
+            try
+            {
+                Directory.CreateDirectory(AppDataDir);
+
+                var creds = new SavedCredentials { Email = email, Password = password };
+                var json = JsonConvert.SerializeObject(creds);
+                var plainBytes = Encoding.UTF8.GetBytes(json);
+                var encryptedBytes = ProtectedData.Protect(
+                    plainBytes, null, DataProtectionScope.CurrentUser);
+
+                File.WriteAllBytes(CredentialsFile, encryptedBytes);
+            }
+            catch { }
+        }
+
+        private void ClearCredentials()
+        {
+            try
+            {
+                if (File.Exists(CredentialsFile))
+                    File.Delete(CredentialsFile);
+            }
+            catch { }
         }
 
         private async Task TryRestoreSessionAsync()
@@ -118,12 +183,27 @@ namespace SecureGateway.Services
                 if (saved == null || string.IsNullOrEmpty(saved.RefreshToken))
                     return;
 
-                // Try to refresh the session
+                // Check 120-day session expiry
+                if (!string.IsNullOrEmpty(saved.LoginTimestampUtc))
+                {
+                    if (DateTime.TryParse(saved.LoginTimestampUtc, null,
+                        System.Globalization.DateTimeStyles.RoundtripKind, out var loginTime))
+                    {
+                        if ((DateTime.UtcNow - loginTime).TotalDays > SessionMaxDays)
+                        {
+                            // Session too old — force re-login
+                            ClearSavedSession();
+                            return;
+                        }
+                    }
+                }
+
+                // Try to refresh the session with the server
                 var session = await _client.Auth.RefreshSession();
 
                 if (session == null)
                 {
-                    // Refresh token expired, clear it
+                    // Server invalidated the token
                     ClearSavedSession();
                 }
             }
@@ -137,23 +217,20 @@ namespace SecureGateway.Services
         {
             try
             {
-                var dir = Path.GetDirectoryName(TokenFile);
-                if (dir != null) Directory.CreateDirectory(dir);
+                Directory.CreateDirectory(AppDataDir);
 
                 var saved = new SavedSession
                 {
                     AccessToken = session.AccessToken ?? "",
                     RefreshToken = session.RefreshToken ?? "",
-                    Email = session.User?.Email ?? ""
+                    Email = session.User?.Email ?? "",
+                    LoginTimestampUtc = DateTime.UtcNow.ToString("o")
                 };
 
                 var json = JsonConvert.SerializeObject(saved);
                 await File.WriteAllTextAsync(TokenFile, json);
             }
-            catch
-            {
-                // Best effort
-            }
+            catch { }
         }
 
         private void ClearSavedSession()
@@ -171,7 +248,14 @@ namespace SecureGateway.Services
             public string AccessToken { get; set; } = "";
             public string RefreshToken { get; set; } = "";
             public string Email { get; set; } = "";
+            public string LoginTimestampUtc { get; set; } = "";
         }
+    }
+
+    public class SavedCredentials
+    {
+        public string Email { get; set; } = "";
+        public string Password { get; set; } = "";
     }
 
     public class AuthResult

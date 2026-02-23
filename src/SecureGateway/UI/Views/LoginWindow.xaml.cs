@@ -36,6 +36,15 @@ namespace SecureGateway.UI.Views
             if (_lockoutUntil.HasValue && _lockoutUntil.Value > DateTime.UtcNow)
                 StartCountdownTimer();
 
+            // Pre-fill saved credentials if available
+            var saved = _authService.LoadCredentials();
+            if (saved != null)
+            {
+                TxtEmail.Text = saved.Email;
+                TxtPassword.Password = saved.Password;
+                ChkRememberMe.IsChecked = true;
+            }
+
             TxtEmail.Focus();
         }
 
@@ -138,7 +147,8 @@ namespace SecureGateway.UI.Views
             }
             else
             {
-                result = await _authService.SignInAsync(email, password);
+                bool rememberMe = ChkRememberMe.IsChecked == true;
+                result = await _authService.SignInAsync(email, password, rememberMe);
             }
 
             SetLoading(false);
