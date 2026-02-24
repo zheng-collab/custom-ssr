@@ -2,12 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using Postgrest.Attributes;
-using Postgrest.Models;
+using Newtonsoft.Json.Linq;
 using Supabase;
 using Supabase.Gotrue;
 using Supabase.Gotrue.Interfaces;
@@ -239,15 +240,25 @@ namespace SecureGateway.Services
         {
             try
             {
-                var response = await _client.From<Profile>()
-                    .Where(p => p.Id == userId)
-                    .Get();
+                using var http = new HttpClient();
+                var accessToken = _client.Auth.CurrentSession?.AccessToken ?? "";
 
-                var profile = response.Models.FirstOrDefault();
-                if (profile?.Permissions == null)
+                http.DefaultRequestHeaders.Add("apikey", SupabaseAnonKey);
+                http.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", accessToken);
+
+                var url = $"{SupabaseUrl}/rest/v1/profiles?id=eq.{userId}&select=permissions";
+                var response = await http.GetStringAsync(url);
+                var rows = JArray.Parse(response);
+
+                if (rows.Count == 0)
                     return false;
 
-                return profile.Permissions.Contains("gateway.access");
+                var permissions = rows[0]["permissions"] as JArray;
+                if (permissions == null)
+                    return false;
+
+                return permissions.Any(p => p.ToString() == "gateway.access");
             }
             catch
             {
@@ -292,26 +303,6 @@ namespace SecureGateway.Services
             public string Email { get; set; } = "";
             public string LoginTimestampUtc { get; set; } = "";
         }
-    }
-
-    [Table("profiles")]
-    public class Profile : BaseModel
-    {
-        [PrimaryKey("id", false)]
-        [Column("id")]
-        public string Id { get; set; } = "";
-
-        [Column("full_name")]
-        public string FullName { get; set; } = "";
-
-        [Column("email")]
-        public string Email { get; set; } = "";
-
-        [Column("role")]
-        public string Role { get; set; } = "";
-
-        [Column("permissions")]
-        public List<string> Permissions { get; set; } = new();
     }
 
     public class SavedCredentials
