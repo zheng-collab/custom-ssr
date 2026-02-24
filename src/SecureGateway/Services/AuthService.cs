@@ -1,9 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Postgrest.Attributes;
+using Postgrest.Models;
 using Supabase;
 using Supabase.Gotrue;
 using Supabase.Gotrue.Interfaces;
@@ -13,7 +17,7 @@ namespace SecureGateway.Services
     public class AuthService
     {
         private const string SupabaseUrl = "https://yahzzatmmmdmwalindai.supabase.co";
-        private const string SupabaseAnonKey = "sb_publishable_XBgu5qAbVb2CcV1ynhbWMg_njzj972c";
+        private const string SupabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlhaHp6YXRtbW1kbXdhbGluZGFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODA1NzMsImV4cCI6MjA4NzM1NjU3M30._OKdLLUDN80GR7nMHYsI3S0WmzPmGw-7QmpZYEIREj4";
         private const int SessionMaxDays = 120;
 
         private static readonly string AppDataDir = Path.Combine(
@@ -51,6 +55,14 @@ namespace SecureGateway.Services
 
                 if (session != null)
                 {
+                    // Check gateway.access permission before granting access
+                    var userId = session.User?.Id;
+                    if (string.IsNullOrEmpty(userId) || !await CheckGatewayAccessAsync(userId))
+                    {
+                        await _client.Auth.SignOut();
+                        return AuthResult.Failure("Access denied. Your account does not have gateway access.");
+                    }
+
                     await SaveSessionAsync(session);
 
                     if (rememberMe)
@@ -206,10 +218,40 @@ namespace SecureGateway.Services
                     // Server invalidated the token
                     ClearSavedSession();
                 }
+                else
+                {
+                    // Re-verify permission on session restore
+                    var userId = session.User?.Id;
+                    if (string.IsNullOrEmpty(userId) || !await CheckGatewayAccessAsync(userId))
+                    {
+                        try { await _client.Auth.SignOut(); } catch { }
+                        ClearSavedSession();
+                    }
+                }
             }
             catch
             {
                 ClearSavedSession();
+            }
+        }
+
+        private async Task<bool> CheckGatewayAccessAsync(string userId)
+        {
+            try
+            {
+                var response = await _client.From<Profile>()
+                    .Where(p => p.Id == userId)
+                    .Get();
+
+                var profile = response.Models.FirstOrDefault();
+                if (profile?.Permissions == null)
+                    return false;
+
+                return profile.Permissions.Contains("gateway.access");
+            }
+            catch
+            {
+                return false;
             }
         }
 
@@ -250,6 +292,26 @@ namespace SecureGateway.Services
             public string Email { get; set; } = "";
             public string LoginTimestampUtc { get; set; } = "";
         }
+    }
+
+    [Table("profiles")]
+    public class Profile : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        [Column("id")]
+        public string Id { get; set; } = "";
+
+        [Column("full_name")]
+        public string FullName { get; set; } = "";
+
+        [Column("email")]
+        public string Email { get; set; } = "";
+
+        [Column("role")]
+        public string Role { get; set; } = "";
+
+        [Column("permissions")]
+        public List<string> Permissions { get; set; } = new();
     }
 
     public class SavedCredentials
