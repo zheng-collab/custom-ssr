@@ -20,6 +20,8 @@ namespace SecureGateway.UI.Views
 
         private readonly AuthService _authService;
         private bool _isSignUpMode;
+        private bool _passwordVisible;
+        private bool _confirmPasswordVisible;
         private int _failedAttempts;
         private DateTime? _lockoutUntil;
         private DispatcherTimer _countdownTimer;
@@ -71,7 +73,7 @@ namespace SecureGateway.UI.Views
             BtnSignUpTab.Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFrom("#A6ADC8")!;
             BtnSubmit.Content = "Sign In";
             LblConfirmPassword.Visibility = Visibility.Collapsed;
-            TxtConfirmPassword.Visibility = Visibility.Collapsed;
+            GridConfirmPassword.Visibility = Visibility.Collapsed;
             LnkForgotPassword.Visibility = Visibility.Visible;
             TxtStatus.Text = "";
             UpdateLockoutUI();
@@ -86,7 +88,7 @@ namespace SecureGateway.UI.Views
             BtnSignInTab.Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFrom("#A6ADC8")!;
             BtnSubmit.Content = "Create Account";
             LblConfirmPassword.Visibility = Visibility.Visible;
-            TxtConfirmPassword.Visibility = Visibility.Visible;
+            GridConfirmPassword.Visibility = Visibility.Visible;
             LnkForgotPassword.Visibility = Visibility.Collapsed;
             TxtStatus.Text = "";
             UpdateLockoutUI();
@@ -99,6 +101,60 @@ namespace SecureGateway.UI.Views
                 FileName = "https://fourthzodiac.com/forgot-password",
                 UseShellExecute = true
             });
+        }
+
+        private void OnTogglePasswordClick(object sender, RoutedEventArgs e)
+        {
+            _passwordVisible = !_passwordVisible;
+            if (_passwordVisible)
+            {
+                TxtPasswordVisible.Text = TxtPassword.Password;
+                TxtPassword.Visibility = Visibility.Collapsed;
+                TxtPasswordVisible.Visibility = Visibility.Visible;
+                IconTogglePassword.Text = "\uED1A"; // hide icon
+                TxtPasswordVisible.Focus();
+                TxtPasswordVisible.CaretIndex = TxtPasswordVisible.Text.Length;
+            }
+            else
+            {
+                TxtPassword.Password = TxtPasswordVisible.Text;
+                TxtPasswordVisible.Visibility = Visibility.Collapsed;
+                TxtPassword.Visibility = Visibility.Visible;
+                IconTogglePassword.Text = "\uE7B3"; // eye icon
+                TxtPassword.Focus();
+            }
+        }
+
+        private void OnToggleConfirmPasswordClick(object sender, RoutedEventArgs e)
+        {
+            _confirmPasswordVisible = !_confirmPasswordVisible;
+            if (_confirmPasswordVisible)
+            {
+                TxtConfirmPasswordVisible.Text = TxtConfirmPassword.Password;
+                TxtConfirmPassword.Visibility = Visibility.Collapsed;
+                TxtConfirmPasswordVisible.Visibility = Visibility.Visible;
+                IconToggleConfirmPassword.Text = "\uED1A";
+                TxtConfirmPasswordVisible.Focus();
+                TxtConfirmPasswordVisible.CaretIndex = TxtConfirmPasswordVisible.Text.Length;
+            }
+            else
+            {
+                TxtConfirmPassword.Password = TxtConfirmPasswordVisible.Text;
+                TxtConfirmPasswordVisible.Visibility = Visibility.Collapsed;
+                TxtConfirmPassword.Visibility = Visibility.Visible;
+                IconToggleConfirmPassword.Text = "\uE7B3";
+                TxtConfirmPassword.Focus();
+            }
+        }
+
+        private string GetPassword()
+        {
+            return _passwordVisible ? TxtPasswordVisible.Text : TxtPassword.Password;
+        }
+
+        private string GetConfirmPassword()
+        {
+            return _confirmPasswordVisible ? TxtConfirmPasswordVisible.Text : TxtConfirmPassword.Password;
         }
 
         private void OnInputKeyDown(object sender, KeyEventArgs e)
@@ -117,7 +173,7 @@ namespace SecureGateway.UI.Views
             }
 
             var email = TxtEmail.Text.Trim();
-            var password = TxtPassword.Password;
+            var password = GetPassword();
 
             // Validation
             if (string.IsNullOrEmpty(email))
@@ -140,7 +196,7 @@ namespace SecureGateway.UI.Views
 
             if (_isSignUpMode)
             {
-                var confirmPassword = TxtConfirmPassword.Password;
+                var confirmPassword = GetConfirmPassword();
                 if (password != confirmPassword)
                 {
                     ShowError("Passwords do not match.");

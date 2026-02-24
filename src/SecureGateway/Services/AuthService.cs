@@ -52,33 +52,55 @@ namespace SecureGateway.Services
         {
             try
             {
-                var session = await _client.Auth.SignIn(email, password);
+                // Direct REST call to Supabase auth — bypasses SDK version issues
+                using var http = new HttpClient();
+                http.DefaultRequestHeaders.Add("apikey", SupabaseAnonKey);
 
-                if (session != null)
+                var payload = JsonConvert.SerializeObject(new { email, password });
+                var content = new StringContent(payload, Encoding.UTF8, "application/json");
+
+                var response = await http.PostAsync(
+                    $"{SupabaseUrl}/auth/v1/token?grant_type=password", content);
+                var body = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
                 {
-                    // Check gateway.access permission before granting access
-                    var userId = session.User?.Id;
-                    if (string.IsNullOrEmpty(userId) || !await CheckGatewayAccessAsync(userId))
-                    {
-                        await _client.Auth.SignOut();
-                        return AuthResult.Failure("Access denied. Your account does not have gateway access.");
-                    }
-
-                    await SaveSessionAsync(session);
-
-                    if (rememberMe)
-                        SaveCredentials(email, password);
-                    else
-                        ClearCredentials();
-
-                    return AuthResult.Success(session.User?.Email ?? email);
+                    var error = JObject.Parse(body);
+                    var msg = error["error_description"]?.ToString()
+                           ?? error["msg"]?.ToString()
+                           ?? "Sign in failed. Please check your credentials.";
+                    return AuthResult.Failure(msg);
                 }
 
-                return AuthResult.Failure("Sign in failed. Please check your credentials.");
-            }
-            catch (Supabase.Gotrue.Exceptions.GotrueException ex)
-            {
-                return AuthResult.Failure(ex.Message);
+                var tokenData = JObject.Parse(body);
+                var accessToken = tokenData["access_token"]?.ToString();
+                var refreshToken = tokenData["refresh_token"]?.ToString();
+
+                if (string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(refreshToken))
+                    return AuthResult.Failure("Sign in failed. Invalid server response.");
+
+                // Establish the session on the SDK client
+                var session = await _client.Auth.SetSession(accessToken, refreshToken);
+
+                if (session == null)
+                    return AuthResult.Failure("Sign in failed. Could not establish session.");
+
+                // Check gateway.access permission before granting access
+                var userId = session.User?.Id;
+                if (string.IsNullOrEmpty(userId) || !await CheckGatewayAccessAsync(userId))
+                {
+                    try { await _client.Auth.SignOut(); } catch { }
+                    return AuthResult.Failure("Access denied. Your account does not have gateway access.");
+                }
+
+                await SaveSessionAsync(session);
+
+                if (rememberMe)
+                    SaveCredentials(email, password);
+                else
+                    ClearCredentials();
+
+                return AuthResult.Success(session.User?.Email ?? email);
             }
             catch (Exception ex)
             {
