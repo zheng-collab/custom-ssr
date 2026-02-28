@@ -28,7 +28,9 @@ namespace SecureGateway.UI.Views
         public MainWindow(bool startMinimized, AuthService authService) : this()
         {
             _authService = authService;
-            _viewModel.UserEmail = authService.UserEmail;
+
+            // Pass auth to ViewModel so it can sync shared servers from Supabase
+            _viewModel.SetAuthService(authService);
 
             if (startMinimized)
             {
@@ -80,8 +82,9 @@ namespace SecureGateway.UI.Views
 
             if (loginResult == true && loginWindow.IsAuthenticated)
             {
-                // Re-authenticated, update user info
-                _viewModel.UserEmail = _authService?.UserEmail ?? "";
+                // Re-authenticated, re-inject auth to sync shared servers
+                if (_authService != null)
+                    _viewModel.SetAuthService(_authService);
             }
             else
             {

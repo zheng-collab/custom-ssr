@@ -33,6 +33,15 @@ namespace SecureGateway.Services
         public bool IsAuthenticated => _client?.Auth?.CurrentSession != null;
         public string UserEmail => _client?.Auth?.CurrentUser?.Email ?? "";
         public string UserId => _client?.Auth?.CurrentUser?.Id ?? "";
+        public string AccessToken => _client?.Auth?.CurrentSession?.AccessToken ?? "";
+
+        /// <summary>
+        /// Creates a SharedServerService that uses this auth session's credentials.
+        /// </summary>
+        public SharedServerService CreateSharedServerService()
+        {
+            return new SharedServerService(SupabaseUrl, SupabaseAnonKey, () => AccessToken);
+        }
 
         public async Task InitializeAsync()
         {

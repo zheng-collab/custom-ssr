@@ -65,6 +65,14 @@ namespace SecureGateway.Models
         public string Remarks { get; set; } = "";
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        // Shared server support — servers synced from Supabase for multi-user access
+        [JsonIgnore]
+        public bool IsShared { get; set; } = false;
+        [JsonIgnore]
+        public string SharedId { get; set; } = "";
+        [JsonIgnore]
+        public string SharedBy { get; set; } = "";
+
         public ServerProfile Clone()
         {
             var json = JsonConvert.SerializeObject(this);

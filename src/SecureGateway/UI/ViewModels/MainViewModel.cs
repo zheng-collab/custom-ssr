@@ -18,6 +18,7 @@ namespace SecureGateway.UI.ViewModels
         private readonly ConfigManager _configManager;
         private readonly ConnectionService _connectionService;
         private readonly AppLogger _logger;
+        private SharedServerService _sharedServerService;
 
         // Connection state
         private bool _isConnected;
@@ -44,6 +45,9 @@ namespace SecureGateway.UI.ViewModels
 
         // Auth
         private string _userEmail = "";
+
+        // Shared server sync
+        private bool _isSyncing;
 
         public ObservableCollection<ServerProfile> Servers { get; } = new();
         public ObservableCollection<string> LogEntries { get; } = new();
@@ -77,8 +81,12 @@ namespace SecureGateway.UI.ViewModels
             get => _selectedServer;
             set
             {
-                if (SetProperty(ref _selectedServer, value) && value != null)
-                    _configManager.SetActiveServer(value.Id);
+                if (SetProperty(ref _selectedServer, value))
+                {
+                    if (value != null)
+                        _configManager.SetActiveServer(value.Id);
+                    OnPropertyChanged(nameof(IsSelectedServerShared));
+                }
             }
         }
 
@@ -111,6 +119,15 @@ namespace SecureGateway.UI.ViewModels
             get => _userEmail;
             set => SetProperty(ref _userEmail, value);
         }
+
+        public bool IsSyncing
+        {
+            get => _isSyncing;
+            set => SetProperty(ref _isSyncing, value);
+        }
+
+        /// <summary>Whether the selected server is a shared (read-only) server.</summary>
+        public bool IsSelectedServerShared => SelectedServer?.IsShared ?? false;
 
         public ProxyMode ProxyMode
         {
@@ -175,6 +192,9 @@ namespace SecureGateway.UI.ViewModels
         public ICommand ClearLogCommand { get; }
         public ICommand ImportFromClipboardCommand { get; }
         public ICommand ExportConfigCommand { get; }
+        public ICommand SyncSharedServersCommand { get; }
+        public ICommand ShareServerCommand { get; }
+        public ICommand UnshareServerCommand { get; }
 
         public MainViewModel()
         {
@@ -199,9 +219,26 @@ namespace SecureGateway.UI.ViewModels
             TestAllLatencyCommand = new AsyncRelayCommand(TestAllLatencyAsync);
             ClearLogCommand = new RelayCommand(ClearLog);
             ImportFromClipboardCommand = new RelayCommand(ImportFromClipboard);
+            SyncSharedServersCommand = new AsyncRelayCommand(SyncSharedServersAsync);
+            ShareServerCommand = new AsyncRelayCommand(ShareServerAsync, _ => SelectedServer != null && !SelectedServer.IsShared);
+            UnshareServerCommand = new AsyncRelayCommand(UnshareServerAsync, _ => SelectedServer != null && SelectedServer.IsShared);
 
             // Load config
             LoadConfig();
+        }
+
+        /// <summary>
+        /// Injects the AuthService so the ViewModel can create a SharedServerService
+        /// for syncing shared servers from Supabase.
+        /// </summary>
+        public void SetAuthService(AuthService authService)
+        {
+            if (authService == null) return;
+            _sharedServerService = authService.CreateSharedServerService();
+            UserEmail = authService.UserEmail;
+
+            // Auto-sync shared servers on login
+            _ = SyncSharedServersAsync();
         }
 
         private void LoadConfig()
@@ -281,6 +318,14 @@ namespace SecureGateway.UI.ViewModels
         {
             if (SelectedServer == null) return;
 
+            if (SelectedServer.IsShared)
+            {
+                MessageBox.Show(
+                    "Shared servers cannot be edited. They are managed centrally for all users.",
+                    "Shared Server", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
             var dialog = new Views.ServerEditWindow(SelectedServer) { Owner = Application.Current.MainWindow };
             if (dialog.ShowDialog() == true)
             {
@@ -302,6 +347,14 @@ namespace SecureGateway.UI.ViewModels
         private void DeleteServer(object parameter)
         {
             if (SelectedServer == null) return;
+
+            if (SelectedServer.IsShared)
+            {
+                MessageBox.Show(
+                    "Shared servers cannot be deleted locally. Use 'Unshare' to remove from the shared pool.",
+                    "Shared Server", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
 
             var result = MessageBox.Show(
                 $"Delete server '{SelectedServer.Name}'?",
@@ -502,6 +555,124 @@ namespace SecureGateway.UI.ViewModels
             catch
             {
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// Fetches shared servers from Supabase and merges them into the local server list.
+        /// Shared servers appear alongside local servers but are read-only.
+        /// Multiple users connecting to the same shared server is fully supported —
+        /// each client runs its own local v2ray-core process with independent local ports.
+        /// </summary>
+        private async Task SyncSharedServersAsync()
+        {
+            if (_sharedServerService == null || IsSyncing) return;
+
+            IsSyncing = true;
+            _logger.Info("Syncing shared servers...");
+
+            try
+            {
+                var sharedServers = await _sharedServerService.FetchSharedServersAsync();
+
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    // Remove previously synced shared servers (they'll be re-added from fresh data)
+                    var toRemove = Servers.Where(s => s.IsShared).ToList();
+                    foreach (var s in toRemove)
+                        Servers.Remove(s);
+
+                    // Insert shared servers at the top of the list
+                    for (int i = 0; i < sharedServers.Count; i++)
+                        Servers.Insert(i, sharedServers[i]);
+
+                    // If no server is selected and shared servers exist, select the first one
+                    if (SelectedServer == null && Servers.Count > 0)
+                        SelectedServer = Servers.FirstOrDefault();
+
+                    _logger.Info($"Synced {sharedServers.Count} shared server(s).");
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"Failed to sync shared servers: {ex.Message}");
+            }
+            finally
+            {
+                IsSyncing = false;
+            }
+        }
+
+        /// <summary>
+        /// Publishes the selected local server to the shared pool so all users can access it.
+        /// </summary>
+        private async Task ShareServerAsync(object parameter)
+        {
+            if (SelectedServer == null || SelectedServer.IsShared || _sharedServerService == null) return;
+
+            var result = MessageBox.Show(
+                $"Share server '{SelectedServer.Name}' with all users?\n\n" +
+                "All authorized users will see this server and can connect to it simultaneously.",
+                "Share Server",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result != MessageBoxResult.Yes) return;
+
+            _logger.Info($"Publishing server '{SelectedServer.Name}' to shared pool...");
+            var success = await _sharedServerService.PublishServerAsync(SelectedServer);
+
+            if (success)
+            {
+                _logger.Info($"Server '{SelectedServer.Name}' shared successfully.");
+                MessageBox.Show(
+                    $"Server '{SelectedServer.Name}' is now shared with all users.\n" +
+                    "Click 'Sync' to see it in the shared list.",
+                    "Server Shared", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Auto-sync to show it immediately
+                await SyncSharedServersAsync();
+            }
+            else
+            {
+                _logger.Warning("Failed to share server. Check your permissions.");
+                MessageBox.Show(
+                    "Failed to share server. You may not have permission to publish shared servers.",
+                    "Share Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        /// <summary>
+        /// Removes a shared server from the pool (admin action).
+        /// </summary>
+        private async Task UnshareServerAsync(object parameter)
+        {
+            if (SelectedServer == null || !SelectedServer.IsShared || _sharedServerService == null) return;
+
+            var result = MessageBox.Show(
+                $"Remove shared server '{SelectedServer.Name}' from the pool?\n\n" +
+                "Other users will no longer see this server after their next sync.",
+                "Unshare Server",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result != MessageBoxResult.Yes) return;
+
+            _logger.Info($"Removing shared server '{SelectedServer.Name}'...");
+            var success = await _sharedServerService.UnpublishServerAsync(SelectedServer.SharedId);
+
+            if (success)
+            {
+                _logger.Info($"Server '{SelectedServer.Name}' removed from shared pool.");
+                Servers.Remove(SelectedServer);
+                SelectedServer = Servers.FirstOrDefault();
+            }
+            else
+            {
+                _logger.Warning("Failed to remove shared server. Check your permissions.");
+                MessageBox.Show(
+                    "Failed to remove shared server. You may not have permission.",
+                    "Unshare Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 
