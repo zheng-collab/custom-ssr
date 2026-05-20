@@ -137,13 +137,10 @@ namespace SecureGateway.Core.Engines
         {
             try
             {
-                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-
-                // If engine is running, test through the proxy
                 if (Status == EngineStatus.Running)
                 {
                     var proxy = new System.Net.WebProxy($"http://127.0.0.1:{profile.LocalHttpPort}");
-                    var handler = new HttpClientHandler { Proxy = proxy };
+                    using var handler = new HttpClientHandler { Proxy = proxy };
                     using var proxyClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
 
                     var sw = Stopwatch.StartNew();
@@ -152,7 +149,6 @@ namespace SecureGateway.Core.Engines
                     return sw.Elapsed.TotalMilliseconds;
                 }
 
-                // Otherwise do a TCP connect test
                 using var tcp = new System.Net.Sockets.TcpClient();
                 var sw2 = Stopwatch.StartNew();
                 await tcp.ConnectAsync(profile.Address, profile.Port);

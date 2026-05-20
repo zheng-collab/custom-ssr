@@ -12,7 +12,6 @@ namespace SecureGateway.Core.Engines
     public class ShadowsocksEngine : IProxyEngine
     {
         private Process _ssProcess;
-        private Process _httpProxyProcess;
         private readonly string _configDir;
         private bool _disposed;
 
@@ -187,9 +186,6 @@ namespace SecureGateway.Core.Engines
             await KillProcess(_ssProcess);
             _ssProcess = null;
 
-            await KillProcess(_httpProxyProcess);
-            _httpProxyProcess = null;
-
             SetStatus(EngineStatus.Stopped, "Shadowsocks stopped.");
         }
 
@@ -200,7 +196,7 @@ namespace SecureGateway.Core.Engines
                 if (Status == EngineStatus.Running)
                 {
                     var proxy = new System.Net.WebProxy($"http://127.0.0.1:{profile.LocalHttpPort}");
-                    var handler = new HttpClientHandler { Proxy = proxy };
+                    using var handler = new HttpClientHandler { Proxy = proxy };
                     using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
 
                     var sw = Stopwatch.StartNew();
@@ -221,9 +217,9 @@ namespace SecureGateway.Core.Engines
             }
         }
 
-        private string GenerateConfig(ServerProfile profile)
+        private static string GetEncryptionString(ShadowsocksEncryption enc)
         {
-            var encryption = profile.SsEncryption switch
+            return enc switch
             {
                 ShadowsocksEncryption.Aes128Gcm => "aes-128-gcm",
                 ShadowsocksEncryption.Aes256Gcm => "aes-256-gcm",
@@ -231,6 +227,11 @@ namespace SecureGateway.Core.Engines
                 ShadowsocksEncryption.XChaCha20IetfPoly1305 => "xchacha20-ietf-poly1305",
                 _ => "aes-256-gcm"
             };
+        }
+
+        private string GenerateConfig(ServerProfile profile)
+        {
+            var encryption = GetEncryptionString(profile.SsEncryption);
 
             var config = new JObject
             {
@@ -256,14 +257,7 @@ namespace SecureGateway.Core.Engines
 
         private string GenerateV2RayFallbackConfig(ServerProfile profile)
         {
-            var encryption = profile.SsEncryption switch
-            {
-                ShadowsocksEncryption.Aes128Gcm => "aes-128-gcm",
-                ShadowsocksEncryption.Aes256Gcm => "aes-256-gcm",
-                ShadowsocksEncryption.ChaCha20IetfPoly1305 => "chacha20-ietf-poly1305",
-                ShadowsocksEncryption.XChaCha20IetfPoly1305 => "xchacha20-ietf-poly1305",
-                _ => "aes-256-gcm"
-            };
+            var encryption = GetEncryptionString(profile.SsEncryption);
 
             var config = new JObject
             {
@@ -385,12 +379,6 @@ namespace SecureGateway.Core.Engines
             {
                 try { _ssProcess.Kill(entireProcessTree: true); } catch { }
                 _ssProcess.Dispose();
-            }
-
-            if (_httpProxyProcess != null && !_httpProxyProcess.HasExited)
-            {
-                try { _httpProxyProcess.Kill(entireProcessTree: true); } catch { }
-                _httpProxyProcess.Dispose();
             }
         }
     }

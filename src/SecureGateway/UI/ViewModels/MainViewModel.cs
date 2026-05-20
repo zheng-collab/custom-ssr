@@ -83,7 +83,7 @@ namespace SecureGateway.UI.ViewModels
             {
                 if (SetProperty(ref _selectedServer, value))
                 {
-                    if (value != null)
+                    if (value != null && !value.IsShared)
                         _configManager.SetActiveServer(value.Id);
                     OnPropertyChanged(nameof(IsSelectedServerShared));
                 }
@@ -191,7 +191,6 @@ namespace SecureGateway.UI.ViewModels
         public ICommand TestAllLatencyCommand { get; }
         public ICommand ClearLogCommand { get; }
         public ICommand ImportFromClipboardCommand { get; }
-        public ICommand ExportConfigCommand { get; }
         public ICommand SyncSharedServersCommand { get; }
         public ICommand ShareServerCommand { get; }
         public ICommand UnshareServerCommand { get; }

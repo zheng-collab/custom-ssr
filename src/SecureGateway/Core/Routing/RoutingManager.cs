@@ -8,8 +8,8 @@ namespace SecureGateway.Core.Routing
 {
     public class RoutingManager
     {
+        private const int PacPort = 10810;
         private readonly string _pacDir;
-        private int _pacPort = 10810;
 
         public RoutingManager()
         {
@@ -29,7 +29,7 @@ namespace SecureGateway.Core.Routing
 
         public string GetPacUrl()
         {
-            return $"http://127.0.0.1:{_pacPort}/proxy.pac";
+            return $"http://127.0.0.1:{PacPort}/proxy.pac";
         }
 
         private string BuildPacScript(AppConfig config, int socksPort)
@@ -58,7 +58,6 @@ namespace SecureGateway.Core.Routing
                 sb.AppendLine("    // Blocked domains");
                 foreach (var domain in config.BlockedDomains)
                 {
-                    var pattern = domain.Replace(".", "\\.").Replace("*", ".*");
                     sb.AppendLine($"    if (shExpMatch(host, \"{domain}\")) return \"PROXY 127.0.0.1:1\";");
                 }
                 sb.AppendLine();

@@ -15,7 +15,7 @@ namespace SecureGateway.Core.Logging
             $"[{Timestamp:HH:mm:ss}] [{Level}] [{Source}] {Message}";
     }
 
-    public class AppLogger
+    public class AppLogger : IDisposable
     {
         private readonly string _logDir;
         private readonly List<LogEntry> _entries = new();

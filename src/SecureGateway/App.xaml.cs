@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows;
 using SecureGateway.Services;
@@ -9,6 +10,9 @@ namespace SecureGateway
 {
     public partial class App : Application
     {
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        private static extern bool DestroyIcon(IntPtr handle);
+
         private System.Windows.Forms.NotifyIcon _trayIcon;
         private MainWindow _mainWindow;
         private Mutex _mutex;
@@ -82,8 +86,7 @@ namespace SecureGateway
                 Visible = true
             };
 
-            // Create a simple icon programmatically (green shield)
-            var bitmap = new Bitmap(16, 16);
+            using var bitmap = new Bitmap(16, 16);
             using (var g = Graphics.FromImage(bitmap))
             {
                 g.Clear(Color.Transparent);
@@ -94,7 +97,12 @@ namespace SecureGateway
                 };
                 g.FillPolygon(brush, points);
             }
-            _trayIcon.Icon = System.Drawing.Icon.FromHandle(bitmap.GetHicon());
+            var hIcon = bitmap.GetHicon();
+            using (var tempIcon = System.Drawing.Icon.FromHandle(hIcon))
+            {
+                _trayIcon.Icon = (System.Drawing.Icon)tempIcon.Clone();
+            }
+            DestroyIcon(hIcon);
 
             // Context menu
             var menu = new System.Windows.Forms.ContextMenuStrip();

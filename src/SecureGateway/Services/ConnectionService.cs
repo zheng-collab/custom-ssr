@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using SecureGateway.Core.Config;
 using SecureGateway.Core.Engines;
 using SecureGateway.Core.Logging;
-using SecureGateway.Core.Routing;
 using SecureGateway.Models;
 
 namespace SecureGateway.Services
@@ -13,7 +12,6 @@ namespace SecureGateway.Services
     {
         private readonly ConfigManager _configManager;
         private readonly SystemProxyService _systemProxy;
-        private readonly RoutingManager _routingManager;
         private readonly AppLogger _logger;
 
         private IProxyEngine _currentEngine;
@@ -33,7 +31,6 @@ namespace SecureGateway.Services
             _configManager = configManager;
             _logger = logger;
             _systemProxy = new SystemProxyService();
-            _routingManager = new RoutingManager();
         }
 
         public async Task ConnectAsync()
@@ -77,9 +74,8 @@ namespace SecureGateway.Services
                         _configManager.Config.ProxyMode,
                         server.LocalHttpPort);
 
-                    // Start stats collection
                     Stats = new ConnectionStats { ConnectedSince = DateTime.UtcNow };
-                    _statsTimer = new Timer(UpdateStats, server, 1000, 2000);
+                    _statsTimer = new Timer(UpdateStats, server, 5000, 15000);
 
                     _configManager.SetActiveServer(server.Id);
                     _logger.Info($"Connected to {server.Name} successfully.");
@@ -126,14 +122,21 @@ namespace SecureGateway.Services
 
         public async Task<double> TestServerLatencyAsync(ServerProfile server)
         {
-            using var engine = server.Protocol switch
-            {
-                ProxyProtocol.V2Ray => (IProxyEngine)new V2RayEngine(),
-                ProxyProtocol.Shadowsocks => new ShadowsocksEngine(),
-                _ => new V2RayEngine()
-            };
+            if (_currentEngine != null && IsConnected)
+                return await _currentEngine.TestLatencyAsync(server);
 
-            return await engine.TestLatencyAsync(server);
+            try
+            {
+                using var tcp = new System.Net.Sockets.TcpClient();
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                await tcp.ConnectAsync(server.Address, server.Port);
+                sw.Stop();
+                return sw.Elapsed.TotalMilliseconds;
+            }
+            catch
+            {
+                return -1;
+            }
         }
 
         public void ChangeProxyMode(ProxyMode mode)
@@ -165,21 +168,19 @@ namespace SecureGateway.Services
 
         private async void UpdateStats(object state)
         {
-            if (!IsConnected) return;
+            var engine = _currentEngine;
+            if (engine == null || engine.Status != EngineStatus.Running) return;
 
             var server = state as ServerProfile;
             if (server == null) return;
 
             try
             {
-                var latency = await _currentEngine.TestLatencyAsync(server);
+                var latency = await engine.TestLatencyAsync(server);
                 Stats.LatencyMs = latency;
                 StatsUpdated?.Invoke(this, Stats);
             }
-            catch
-            {
-                // Ignore stats update failures
-            }
+            catch { }
         }
 
         public void Dispose()

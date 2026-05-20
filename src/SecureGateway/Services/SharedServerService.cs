@@ -10,37 +10,10 @@ using SecureGateway.Models;
 
 namespace SecureGateway.Services
 {
-    /// <summary>
-    /// Syncs shared server profiles from the Supabase "shared_servers" table
-    /// so that multiple users can access the same server configurations.
-    ///
-    /// Supabase table schema (shared_servers):
-    ///   id           uuid   PRIMARY KEY DEFAULT gen_random_uuid()
-    ///   name         text   NOT NULL
-    ///   address      text   NOT NULL
-    ///   port         int    NOT NULL DEFAULT 443
-    ///   protocol     text   NOT NULL DEFAULT 'V2Ray'
-    ///   v2ray_user_id       text
-    ///   v2ray_alter_id      int    DEFAULT 0
-    ///   v2ray_security      text   DEFAULT 'auto'
-    ///   v2ray_transport     text   DEFAULT 'WebSocket'
-    ///   v2ray_path          text   DEFAULT '/ws'
-    ///   v2ray_host          text
-    ///   v2ray_tls           bool   DEFAULT true
-    ///   v2ray_sni           text
-    ///   ss_password         text
-    ///   ss_encryption       text   DEFAULT 'Aes256Gcm'
-    ///   ss_plugin           text
-    ///   ss_plugin_options   text
-    ///   remarks      text
-    ///   created_by   text
-    ///   created_at   timestamptz DEFAULT now()
-    ///   enabled      bool   DEFAULT true
-    ///
-    /// RLS policy: SELECT allowed for authenticated users with gateway.access.
-    /// </summary>
     public class SharedServerService
     {
+        private static readonly HttpClient Http = new();
+
         private readonly string _supabaseUrl;
         private readonly string _supabaseAnonKey;
         private readonly Func<string> _getAccessToken;
@@ -52,25 +25,15 @@ namespace SecureGateway.Services
             _getAccessToken = getAccessToken;
         }
 
-        /// <summary>
-        /// Fetches all enabled shared servers from Supabase.
-        /// </summary>
         public async Task<List<ServerProfile>> FetchSharedServersAsync()
         {
             var servers = new List<ServerProfile>();
 
             try
             {
-                using var http = new HttpClient();
-                http.DefaultRequestHeaders.Add("apikey", _supabaseAnonKey);
-
-                var accessToken = _getAccessToken();
-                if (!string.IsNullOrEmpty(accessToken))
-                    http.DefaultRequestHeaders.Authorization =
-                        new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var url = $"{_supabaseUrl}/rest/v1/shared_servers?enabled=eq.true&select=*";
-                var response = await http.GetAsync(url);
+                var request = CreateRequest(HttpMethod.Get,
+                    $"{_supabaseUrl}/rest/v1/shared_servers?enabled=eq.true&select=*");
+                var response = await Http.SendAsync(request);
 
                 if (!response.IsSuccessStatusCode)
                     return servers;
@@ -85,29 +48,15 @@ namespace SecureGateway.Services
                         servers.Add(server);
                 }
             }
-            catch
-            {
-                // Network or parse failure — return empty list, local servers still work
-            }
+            catch { }
 
             return servers;
         }
 
-        /// <summary>
-        /// Publishes a local server profile to the shared_servers table (admin action).
-        /// </summary>
         public async Task<bool> PublishServerAsync(ServerProfile server)
         {
             try
             {
-                using var http = new HttpClient();
-                http.DefaultRequestHeaders.Add("apikey", _supabaseAnonKey);
-
-                var accessToken = _getAccessToken();
-                if (!string.IsNullOrEmpty(accessToken))
-                    http.DefaultRequestHeaders.Authorization =
-                        new AuthenticationHeaderValue("Bearer", accessToken);
-
                 var payload = new JObject
                 {
                     ["name"] = server.Name,
@@ -130,12 +79,12 @@ namespace SecureGateway.Services
                     ["enabled"] = true
                 };
 
-                var content = new StringContent(payload.ToString(), Encoding.UTF8, "application/json");
-                http.DefaultRequestHeaders.Add("Prefer", "return=minimal");
+                var request = CreateRequest(HttpMethod.Post,
+                    $"{_supabaseUrl}/rest/v1/shared_servers");
+                request.Headers.Add("Prefer", "return=minimal");
+                request.Content = new StringContent(payload.ToString(), Encoding.UTF8, "application/json");
 
-                var url = $"{_supabaseUrl}/rest/v1/shared_servers";
-                var response = await http.PostAsync(url, content);
-
+                var response = await Http.SendAsync(request);
                 return response.IsSuccessStatusCode;
             }
             catch
@@ -144,30 +93,31 @@ namespace SecureGateway.Services
             }
         }
 
-        /// <summary>
-        /// Removes a shared server from the table (admin action).
-        /// </summary>
         public async Task<bool> UnpublishServerAsync(string sharedId)
         {
             try
             {
-                using var http = new HttpClient();
-                http.DefaultRequestHeaders.Add("apikey", _supabaseAnonKey);
-
-                var accessToken = _getAccessToken();
-                if (!string.IsNullOrEmpty(accessToken))
-                    http.DefaultRequestHeaders.Authorization =
-                        new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var url = $"{_supabaseUrl}/rest/v1/shared_servers?id=eq.{sharedId}";
-                var response = await http.DeleteAsync(url);
-
+                var request = CreateRequest(HttpMethod.Delete,
+                    $"{_supabaseUrl}/rest/v1/shared_servers?id=eq.{sharedId}");
+                var response = await Http.SendAsync(request);
                 return response.IsSuccessStatusCode;
             }
             catch
             {
                 return false;
             }
+        }
+
+        private HttpRequestMessage CreateRequest(HttpMethod method, string url)
+        {
+            var request = new HttpRequestMessage(method, url);
+            request.Headers.Add("apikey", _supabaseAnonKey);
+
+            var accessToken = _getAccessToken();
+            if (!string.IsNullOrEmpty(accessToken))
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+            return request;
         }
 
         private static ServerProfile MapRowToServerProfile(JToken row)
@@ -187,8 +137,6 @@ namespace SecureGateway.Services
 
                 return new ServerProfile
                 {
-                    // Use a deterministic local ID derived from the shared ID so we can
-                    // detect duplicates across syncs without re-adding them.
                     Id = $"shared-{sharedId}",
                     Name = row["name"]?.ToString() ?? "Shared Server",
                     Address = row["address"]?.ToString() ?? "",
@@ -211,7 +159,6 @@ namespace SecureGateway.Services
 
                     Remarks = row["remarks"]?.ToString() ?? "",
 
-                    // Mark as shared
                     IsShared = true,
                     SharedId = sharedId,
                     SharedBy = row["created_by"]?.ToString() ?? ""
