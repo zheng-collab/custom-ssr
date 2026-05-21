@@ -11,6 +11,8 @@ namespace SecureGateway.Core.Engines
 {
     public class V2RayEngine : IProxyEngine
     {
+        private const int StatsApiPort = 10813;
+
         private Process _process;
         private readonly string _v2rayPath;
         private readonly string _configDir;
@@ -89,8 +91,7 @@ namespace SecureGateway.Core.Engines
                 _process.BeginOutputReadLine();
                 _process.BeginErrorReadLine();
 
-                // Give it a moment to start
-                await Task.Delay(1000);
+                await Task.Delay(1500);
 
                 if (_process.HasExited)
                 {
@@ -141,10 +142,18 @@ namespace SecureGateway.Core.Engines
                 {
                     var proxy = new System.Net.WebProxy($"http://127.0.0.1:{profile.LocalHttpPort}");
                     using var handler = new HttpClientHandler { Proxy = proxy };
-                    using var proxyClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
+                    using var proxyClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
 
                     var sw = Stopwatch.StartNew();
-                    await proxyClient.GetAsync("https://www.google.com/generate_204");
+                    // Use cp.cloudflare.com (works globally) with google as fallback
+                    try
+                    {
+                        await proxyClient.GetAsync("http://cp.cloudflare.com/");
+                    }
+                    catch
+                    {
+                        await proxyClient.GetAsync("https://www.google.com/generate_204");
+                    }
                     sw.Stop();
                     return sw.Elapsed.TotalMilliseconds;
                 }
@@ -161,6 +170,63 @@ namespace SecureGateway.Core.Engines
             }
         }
 
+        public async Task<(long uplink, long downlink)> QueryTrafficStatsAsync()
+        {
+            try
+            {
+                using var proc = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = _v2rayPath,
+                        Arguments = $"api stats --server=127.0.0.1:{StatsApiPort} -json",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        WorkingDirectory = Path.GetDirectoryName(_v2rayPath)
+                    }
+                };
+
+                proc.Start();
+                var outputTask = proc.StandardOutput.ReadToEndAsync();
+
+                if (!proc.WaitForExit(3000))
+                {
+                    try { proc.Kill(); } catch { }
+                    return (0, 0);
+                }
+
+                var output = await outputTask;
+
+                if (proc.ExitCode != 0 || string.IsNullOrWhiteSpace(output))
+                    return (0, 0);
+
+                var json = JObject.Parse(output);
+                long uplink = 0, downlink = 0;
+
+                var stats = json["stat"] as JArray;
+                if (stats != null)
+                {
+                    foreach (var stat in stats)
+                    {
+                        var name = stat["name"]?.ToString() ?? "";
+                        var val = long.TryParse(stat["value"]?.ToString(), out var v) ? v : 0;
+                        if (name.Contains("uplink"))
+                            uplink = val;
+                        else if (name.Contains("downlink"))
+                            downlink = val;
+                    }
+                }
+
+                return (uplink, downlink);
+            }
+            catch
+            {
+                return (0, 0);
+            }
+        }
+
         private string GenerateConfig(ServerProfile profile)
         {
             var config = new JObject
@@ -168,6 +234,20 @@ namespace SecureGateway.Core.Engines
                 ["log"] = new JObject
                 {
                     ["loglevel"] = "warning"
+                },
+                ["stats"] = new JObject(),
+                ["api"] = new JObject
+                {
+                    ["tag"] = "api",
+                    ["services"] = new JArray("StatsService")
+                },
+                ["policy"] = new JObject
+                {
+                    ["system"] = new JObject
+                    {
+                        ["statsOutboundUplink"] = true,
+                        ["statsOutboundDownlink"] = true
+                    }
                 },
                 ["inbounds"] = new JArray
                 {
@@ -197,6 +277,17 @@ namespace SecureGateway.Core.Engines
                         ["settings"] = new JObject
                         {
                             ["allowTransparent"] = false
+                        }
+                    },
+                    new JObject
+                    {
+                        ["tag"] = "api-in",
+                        ["port"] = StatsApiPort,
+                        ["listen"] = "127.0.0.1",
+                        ["protocol"] = "dokodemo-door",
+                        ["settings"] = new JObject
+                        {
+                            ["address"] = "127.0.0.1"
                         }
                     }
                 },
@@ -237,6 +328,12 @@ namespace SecureGateway.Core.Engines
                     ["domainStrategy"] = "IPIfNonMatch",
                     ["rules"] = new JArray
                     {
+                        new JObject
+                        {
+                            ["type"] = "field",
+                            ["inboundTag"] = new JArray("api-in"),
+                            ["outboundTag"] = "api"
+                        },
                         new JObject
                         {
                             ["type"] = "field",

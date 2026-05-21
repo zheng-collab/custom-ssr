@@ -197,10 +197,17 @@ namespace SecureGateway.Core.Engines
                 {
                     var proxy = new System.Net.WebProxy($"http://127.0.0.1:{profile.LocalHttpPort}");
                     using var handler = new HttpClientHandler { Proxy = proxy };
-                    using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
+                    using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
 
                     var sw = Stopwatch.StartNew();
-                    await client.GetAsync("https://www.google.com/generate_204");
+                    try
+                    {
+                        await client.GetAsync("http://cp.cloudflare.com/");
+                    }
+                    catch
+                    {
+                        await client.GetAsync("https://www.google.com/generate_204");
+                    }
                     sw.Stop();
                     return sw.Elapsed.TotalMilliseconds;
                 }
@@ -356,6 +363,12 @@ namespace SecureGateway.Core.Engines
             {
                 process.Dispose();
             }
+        }
+
+        public Task<(long uplink, long downlink)> QueryTrafficStatsAsync()
+        {
+            // SS engine doesn't have a stats API — traffic stats not available
+            return Task.FromResult((0L, 0L));
         }
 
         private void SetStatus(EngineStatus status, string message)

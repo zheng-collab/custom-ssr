@@ -46,5 +46,6 @@ namespace SecureGateway.Core.Engines
         Task StartAsync(ServerProfile profile);
         Task StopAsync();
         Task<double> TestLatencyAsync(ServerProfile profile);
+        Task<(long uplink, long downlink)> QueryTrafficStatsAsync();
     }
 }

@@ -176,8 +176,14 @@ namespace SecureGateway.Services
 
             try
             {
-                var latency = await engine.TestLatencyAsync(server);
-                Stats.LatencyMs = latency;
+                var latencyTask = engine.TestLatencyAsync(server);
+                var trafficTask = engine.QueryTrafficStatsAsync();
+
+                await Task.WhenAll(latencyTask, trafficTask);
+
+                Stats.LatencyMs = latencyTask.Result;
+                Stats.BytesSent = trafficTask.Result.uplink;
+                Stats.BytesReceived = trafficTask.Result.downlink;
                 StatsUpdated?.Invoke(this, Stats);
             }
             catch { }
