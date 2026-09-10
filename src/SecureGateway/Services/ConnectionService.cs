@@ -5,6 +5,7 @@ using SecureGateway.Core.Config;
 using SecureGateway.Core.Engines;
 using SecureGateway.Core.Logging;
 using SecureGateway.Models;
+using SecureGateway.Utils;
 
 namespace SecureGateway.Services
 {
@@ -15,6 +16,7 @@ namespace SecureGateway.Services
         private readonly AppLogger _logger;
 
         private IProxyEngine _currentEngine;
+        private ServerProfile _activeServer;
         private Timer _statsTimer;
         private bool _disposed;
 
@@ -33,56 +35,53 @@ namespace SecureGateway.Services
             _systemProxy = new SystemProxyService();
         }
 
-        public async Task ConnectAsync()
+        public async Task ConnectAsync(ServerProfile server)
         {
-            var server = _configManager.GetActiveServer();
-            if (server == null)
+            if (_currentEngine != null)
+                await DisconnectAsync();
+
+            _logger.Info($"Connecting to {server.Name} ({server.Address}:{server.Port})...");
+
+            ServerProfile runtime;
+            try
             {
-                _logger.Warning("No active server configured.");
-                StatusChanged?.Invoke(this,
-                    new EngineStatusChangedEventArgs(EngineStatus.Error, "No server configured. Please add a server first."));
+                runtime = ResolveLocalPorts(server);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex.Message);
+                StatusChanged?.Invoke(this, new EngineStatusChangedEventArgs(EngineStatus.Error, ex.Message));
                 return;
             }
 
-            await ConnectAsync(server);
-        }
-
-        public async Task ConnectAsync(ServerProfile server)
-        {
-            _logger.Info($"Connecting to {server.Name} ({server.Address}:{server.Port})...");
-
-            // Create appropriate engine
-            _currentEngine?.Dispose();
-            _currentEngine = server.Protocol switch
-            {
-                ProxyProtocol.V2Ray => new V2RayEngine(),
-                ProxyProtocol.Shadowsocks => new ShadowsocksEngine(),
-                _ => new V2RayEngine()
-            };
-
+            _activeServer = runtime;
+            _currentEngine = new V2RayEngine();
             _currentEngine.StatusChanged += OnEngineStatusChanged;
             _currentEngine.LogReceived += OnEngineLogReceived;
 
             try
             {
-                await _currentEngine.StartAsync(server);
+                await _currentEngine.StartAsync(runtime);
 
-                if (_currentEngine.Status == EngineStatus.Running)
+                if (_currentEngine.Status != EngineStatus.Running)
                 {
-                    // Configure system proxy
-                    _systemProxy.ConfigureForMode(
-                        _configManager.Config.ProxyMode,
-                        server.LocalHttpPort);
-
-                    Stats = new ConnectionStats { ConnectedSince = DateTime.UtcNow };
-                    _statsTimer = new Timer(UpdateStats, server, 5000, 15000);
-
-                    _configManager.SetActiveServer(server.Id);
-                    _logger.Info($"Connected to {server.Name} successfully.");
+                    TearDownEngine();
+                    return;
                 }
+
+                _systemProxy.ConfigureForMode(_configManager.Config.ProxyMode, runtime.LocalHttpPort);
+
+                Stats = new ConnectionStats { ConnectedSince = DateTime.UtcNow };
+                _statsTimer = new Timer(UpdateStats, runtime, 5000, 15000);
+
+                if (!server.IsShared)
+                    _configManager.SetActiveServer(server.Id);
+
+                _logger.Info($"Connected to {server.Name} successfully.");
             }
             catch (Exception ex)
             {
+                TearDownEngine();
                 _logger.Error($"Connection failed: {ex.Message}");
                 StatusChanged?.Invoke(this,
                     new EngineStatusChangedEventArgs(EngineStatus.Error, $"Connection failed: {ex.Message}"));
@@ -91,21 +90,24 @@ namespace SecureGateway.Services
 
         public async Task DisconnectAsync()
         {
+            if (_currentEngine == null) return;
+
             _logger.Info("Disconnecting...");
 
             _statsTimer?.Dispose();
             _statsTimer = null;
 
-            if (_currentEngine != null)
-            {
-                _currentEngine.StatusChanged -= OnEngineStatusChanged;
-                _currentEngine.LogReceived -= OnEngineLogReceived;
-                await _currentEngine.StopAsync();
-                _currentEngine.Dispose();
-                _currentEngine = null;
-            }
+            var engine = _currentEngine;
+            engine.StatusChanged -= OnEngineStatusChanged;
+            engine.LogReceived -= OnEngineLogReceived;
 
-            // Restore system proxy settings
+            try { await engine.StopAsync(); }
+            catch (Exception ex) { _logger.Warning($"Error while stopping engine: {ex.Message}"); }
+
+            engine.Dispose();
+            _currentEngine = null;
+            _activeServer = null;
+
             _systemProxy.DisableProxy();
 
             Stats = new ConnectionStats();
@@ -113,17 +115,10 @@ namespace SecureGateway.Services
             _logger.Info("Disconnected.");
         }
 
-        public async Task ReconnectAsync()
-        {
-            await DisconnectAsync();
-            await Task.Delay(500);
-            await ConnectAsync();
-        }
-
         public async Task<double> TestServerLatencyAsync(ServerProfile server)
         {
-            if (_currentEngine != null && IsConnected)
-                return await _currentEngine.TestLatencyAsync(server);
+            if (IsConnected && _activeServer != null && _activeServer.Id == server.Id)
+                return await _currentEngine.TestLatencyAsync(_activeServer);
 
             try
             {
@@ -144,15 +139,53 @@ namespace SecureGateway.Services
             _configManager.Config.ProxyMode = mode;
             _configManager.Save();
 
-            if (IsConnected)
+            if (IsConnected && _activeServer != null)
             {
-                var server = _configManager.GetActiveServer();
-                if (server != null)
-                {
-                    _systemProxy.ConfigureForMode(mode, server.LocalHttpPort);
-                    _logger.Info($"Proxy mode changed to {mode}.");
-                }
+                _systemProxy.ConfigureForMode(mode, _activeServer.LocalHttpPort);
+                _logger.Info($"Proxy mode changed to {mode}.");
             }
+        }
+
+        /// <summary>
+        /// Returns a profile whose local ports are guaranteed free. Multiple instances
+        /// (other Windows users, other proxy tools) may already hold the defaults.
+        /// </summary>
+        private ServerProfile ResolveLocalPorts(ServerProfile server)
+        {
+            var socks = PortHelper.FindFreePort(server.LocalSocksPort);
+            var http = PortHelper.FindFreePort(server.LocalHttpPort, socks);
+
+            if (socks == server.LocalSocksPort && http == server.LocalHttpPort)
+                return server;
+
+            _logger.Warning(
+                $"Local port(s) {server.LocalSocksPort}/{server.LocalHttpPort} are in use — " +
+                $"using {socks}/{http} instead.");
+
+            var runtime = server.Clone();
+            runtime.Id = server.Id;
+            runtime.IsShared = server.IsShared;
+            runtime.SharedId = server.SharedId;
+            runtime.SharedBy = server.SharedBy;
+            runtime.LocalSocksPort = socks;
+            runtime.LocalHttpPort = http;
+            return runtime;
+        }
+
+        private void TearDownEngine()
+        {
+            _statsTimer?.Dispose();
+            _statsTimer = null;
+
+            if (_currentEngine != null)
+            {
+                _currentEngine.StatusChanged -= OnEngineStatusChanged;
+                _currentEngine.LogReceived -= OnEngineLogReceived;
+                _currentEngine.Dispose();
+                _currentEngine = null;
+            }
+
+            _activeServer = null;
         }
 
         private void OnEngineStatusChanged(object sender, EngineStatusChangedEventArgs e)
@@ -170,15 +203,12 @@ namespace SecureGateway.Services
         {
             var engine = _currentEngine;
             if (engine == null || engine.Status != EngineStatus.Running) return;
-
-            var server = state as ServerProfile;
-            if (server == null) return;
+            if (state is not ServerProfile server) return;
 
             try
             {
                 var latencyTask = engine.TestLatencyAsync(server);
                 var trafficTask = engine.QueryTrafficStatsAsync();
-
                 await Task.WhenAll(latencyTask, trafficTask);
 
                 Stats.LatencyMs = latencyTask.Result;
@@ -195,8 +225,9 @@ namespace SecureGateway.Services
             _disposed = true;
 
             _statsTimer?.Dispose();
-            _systemProxy.DisableProxy();
             _currentEngine?.Dispose();
+            _currentEngine = null;
+            _systemProxy.DisableProxy();
         }
     }
 }

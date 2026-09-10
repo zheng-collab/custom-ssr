@@ -51,19 +51,6 @@ namespace SecureGateway.UI.Views
             TxtEmail.Focus();
         }
 
-        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
-        {
-            // Only allow closing if authenticated — otherwise block the close
-            if (!IsAuthenticated)
-            {
-                e.Cancel = true;
-                // Shut down the entire app instead
-                Application.Current.Shutdown();
-            }
-
-            base.OnClosing(e);
-        }
-
         private void OnSignInTabClick(object sender, RoutedEventArgs e)
         {
             _isSignUpMode = false;

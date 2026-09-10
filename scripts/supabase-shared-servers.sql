@@ -92,5 +92,7 @@ CREATE INDEX IF NOT EXISTS idx_shared_servers_enabled
 -- Multiple users can connect to the same server simultaneously because:
 --   - Each client runs its own local v2ray-core process
 --   - V2Ray/Shadowsocks servers natively support multiple concurrent clients
---   - Local proxy ports (10808/10809) are per-machine, no conflict between users
+--   - Local proxy ports default to 10808/10809 but the client automatically picks
+--     the next free ports if those are taken (e.g. by another Windows user's
+--     instance on the same PC, or by another proxy tool)
 -- =============================================================================

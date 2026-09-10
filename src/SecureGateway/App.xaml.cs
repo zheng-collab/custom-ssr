@@ -1,7 +1,9 @@
 using System;
 using System.Drawing;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using SecureGateway.Services;
 using SecureGateway.UI.Views;
@@ -13,6 +15,10 @@ namespace SecureGateway
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern bool DestroyIcon(IntPtr handle);
 
+        private static readonly string CrashLog = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "SecureGateway", "logs", "crash.log");
+
         private System.Windows.Forms.NotifyIcon _trayIcon;
         private MainWindow _mainWindow;
         private Mutex _mutex;
@@ -20,10 +26,11 @@ namespace SecureGateway
 
         protected override async void OnStartup(StartupEventArgs e)
         {
-            // Single instance check
-            const string mutexName = "SecureGateway_SingleInstance_Mutex";
-            _mutex = new Mutex(true, mutexName, out bool createdNew);
+            RegisterGlobalExceptionHandlers();
 
+            // "Local\" scopes the mutex to the current Windows logon session, so different
+            // Windows user accounts on the same PC can each run their own instance.
+            _mutex = new Mutex(true, @"Local\SecureGateway_SingleInstance_Mutex", out bool createdNew);
             if (!createdNew)
             {
                 MessageBox.Show("SecureGateway is already running.", "SecureGateway",
@@ -34,14 +41,8 @@ namespace SecureGateway
 
             base.OnStartup(e);
 
-            bool startMinimized = false;
-            foreach (var arg in e.Args)
-            {
-                if (arg == "--minimized")
-                    startMinimized = true;
-            }
+            bool startMinimized = Array.IndexOf(e.Args, "--minimized") >= 0;
 
-            // Initialize auth service
             _authService = new AuthService();
             try
             {
@@ -55,20 +56,16 @@ namespace SecureGateway
                 return;
             }
 
-            // If not already authenticated (no saved session), show login
             if (!_authService.IsAuthenticated)
             {
                 var loginWindow = new LoginWindow(_authService);
-                var result = loginWindow.ShowDialog();
-
-                if (result != true || !loginWindow.IsAuthenticated)
+                if (loginWindow.ShowDialog() != true || !loginWindow.IsAuthenticated)
                 {
                     Shutdown();
                     return;
                 }
             }
 
-            // Authenticated - launch main window
             _mainWindow = new MainWindow(startMinimized, _authService);
             MainWindow = _mainWindow;
 
@@ -76,6 +73,56 @@ namespace SecureGateway
 
             if (!startMinimized)
                 _mainWindow.Show();
+        }
+
+        protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
+        {
+            // Windows is logging off / shutting down: restore the system proxy now.
+            _mainWindow?.ShutdownCleanup();
+            base.OnSessionEnding(e);
+        }
+
+        protected override void OnExit(ExitEventArgs e)
+        {
+            _mainWindow?.ShutdownCleanup();
+            if (_trayIcon != null)
+            {
+                _trayIcon.Visible = false;
+                _trayIcon.Dispose();
+            }
+            _mutex?.Dispose();
+            base.OnExit(e);
+        }
+
+        private void RegisterGlobalExceptionHandlers()
+        {
+            DispatcherUnhandledException += (s, args) =>
+            {
+                WriteCrashLog(args.Exception);
+                MessageBox.Show($"An unexpected error occurred:\n{args.Exception.Message}",
+                    "SecureGateway", MessageBoxButton.OK, MessageBoxImage.Error);
+                args.Handled = true;
+            };
+
+            TaskScheduler.UnobservedTaskException += (s, args) =>
+            {
+                WriteCrashLog(args.Exception);
+                args.SetObserved();
+            };
+
+            AppDomain.CurrentDomain.UnhandledException += (s, args) =>
+                WriteCrashLog(args.ExceptionObject as Exception);
+        }
+
+        private static void WriteCrashLog(Exception ex)
+        {
+            if (ex == null) return;
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(CrashLog)!);
+                File.AppendAllText(CrashLog, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex}{Environment.NewLine}{Environment.NewLine}");
+            }
+            catch { }
         }
 
         private void SetupTrayIcon()
@@ -86,25 +133,26 @@ namespace SecureGateway
                 Visible = true
             };
 
-            using var bitmap = new Bitmap(16, 16);
-            using (var g = Graphics.FromImage(bitmap))
+            using (var bitmap = new Bitmap(16, 16))
             {
-                g.Clear(Color.Transparent);
-                using var brush = new SolidBrush(Color.FromArgb(76, 175, 80));
-                var points = new System.Drawing.Point[]
+                using (var g = Graphics.FromImage(bitmap))
                 {
-                    new(8, 1), new(14, 4), new(14, 9), new(8, 15), new(2, 9), new(2, 4)
-                };
-                g.FillPolygon(brush, points);
-            }
-            var hIcon = bitmap.GetHicon();
-            using (var tempIcon = System.Drawing.Icon.FromHandle(hIcon))
-            {
-                _trayIcon.Icon = (System.Drawing.Icon)tempIcon.Clone();
-            }
-            DestroyIcon(hIcon);
+                    g.Clear(Color.Transparent);
+                    using var brush = new SolidBrush(Color.FromArgb(76, 175, 80));
+                    g.FillPolygon(brush, new System.Drawing.Point[]
+                    {
+                        new(8, 1), new(14, 4), new(14, 9), new(8, 15), new(2, 9), new(2, 4)
+                    });
+                }
 
-            // Context menu
+                var hIcon = bitmap.GetHicon();
+                using (var tempIcon = Icon.FromHandle(hIcon))
+                {
+                    _trayIcon.Icon = (Icon)tempIcon.Clone();
+                }
+                DestroyIcon(hIcon);
+            }
+
             var menu = new System.Windows.Forms.ContextMenuStrip();
 
             var showItem = new System.Windows.Forms.ToolStripMenuItem("Show SecureGateway");
@@ -115,11 +163,7 @@ namespace SecureGateway
             menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
 
             var connectItem = new System.Windows.Forms.ToolStripMenuItem("Connect");
-            connectItem.Click += (s, e) =>
-            {
-                var vm = _mainWindow?.DataContext as UI.ViewModels.MainViewModel;
-                vm?.ToggleConnectionCommand.Execute(null);
-            };
+            connectItem.Click += (s, e) => _mainWindow?.ViewModel.ToggleConnectionCommand.Execute(null);
             menu.Items.Add(connectItem);
 
             menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
@@ -133,15 +177,11 @@ namespace SecureGateway
             };
             menu.Items.Add(exitItem);
 
+            menu.Opening += (s, e) =>
+                connectItem.Text = _mainWindow?.ViewModel.IsConnected == true ? "Disconnect" : "Connect";
+
             _trayIcon.ContextMenuStrip = menu;
             _trayIcon.DoubleClick += (s, e) => _mainWindow?.ShowFromTray();
-        }
-
-        protected override void OnExit(ExitEventArgs e)
-        {
-            _trayIcon?.Dispose();
-            _mutex?.Dispose();
-            base.OnExit(e);
         }
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Threading.Tasks;
 using System.Windows;
 using SecureGateway.Services;
 using SecureGateway.UI.ViewModels;
@@ -8,48 +9,43 @@ namespace SecureGateway.UI.Views
 {
     public partial class MainWindow : Window
     {
-        private readonly MainViewModel _viewModel;
         private readonly AuthService _authService;
         private bool _forceClose;
+        private bool _cleanedUp;
 
-        public MainWindow()
+        public MainViewModel ViewModel { get; }
+
+        public MainWindow(bool startMinimized, AuthService authService)
         {
             InitializeComponent();
-            _viewModel = new MainViewModel();
-            DataContext = _viewModel;
 
-            _viewModel.LogEntries.CollectionChanged += (s, e) =>
+            _authService = authService;
+            ViewModel = new MainViewModel();
+            DataContext = ViewModel;
+
+            ViewModel.LogEntries.CollectionChanged += (s, e) =>
             {
                 if (LogListBox.Items.Count > 0)
                     LogListBox.ScrollIntoView(LogListBox.Items[LogListBox.Items.Count - 1]);
             };
-        }
 
-        public MainWindow(bool startMinimized, AuthService authService) : this()
-        {
-            _authService = authService;
-
-            // Pass auth to ViewModel so it can sync shared servers from Supabase
-            _viewModel.SetAuthService(authService);
+            ViewModel.SetAuthService(authService);
 
             if (startMinimized)
             {
                 WindowState = WindowState.Minimized;
-                if (_viewModel.MinimizeToTray)
+                if (ViewModel.MinimizeToTray)
                     Hide();
             }
-        }
 
-        protected override void OnSourceInitialized(EventArgs e)
-        {
-            base.OnSourceInitialized(e);
-
-            if (_viewModel.AutoConnect)
+            // Runs even when the window starts hidden in the tray, unlike Loaded/SourceInitialized.
+            if (ViewModel.AutoConnect)
             {
-                Dispatcher.InvokeAsync(async () =>
+                _ = Dispatcher.InvokeAsync(async () =>
                 {
-                    await System.Threading.Tasks.Task.Delay(500);
-                    _viewModel.ToggleConnectionCommand.Execute(null);
+                    await Task.Delay(1000);
+                    if (!ViewModel.IsConnected && !ViewModel.IsConnecting)
+                        ViewModel.ToggleConnectionCommand.Execute(null);
                 });
             }
         }
@@ -64,31 +60,20 @@ namespace SecureGateway.UI.Views
 
             if (result != MessageBoxResult.Yes) return;
 
-            // Disconnect VPN first
-            if (_viewModel.IsConnected)
+            await ViewModel.DisconnectAsync();
+            await _authService.SignOutAsync();
+            ViewModel.ClearSharedServers();
+            Hide();
+
+            var loginWindow = new LoginWindow(_authService);
+            if (loginWindow.ShowDialog() == true && loginWindow.IsAuthenticated)
             {
-                _viewModel.ToggleConnectionCommand.Execute(null);
-                await System.Threading.Tasks.Task.Delay(500);
-            }
-
-            if (_authService != null)
-                await _authService.SignOutAsync();
-
-            _viewModel.Dispose();
-
-            // Show login window again
-            var loginWindow = new LoginWindow(_authService ?? new AuthService());
-            var loginResult = loginWindow.ShowDialog();
-
-            if (loginResult == true && loginWindow.IsAuthenticated)
-            {
-                // Re-authenticated, re-inject auth to sync shared servers
-                if (_authService != null)
-                    _viewModel.SetAuthService(_authService);
+                ViewModel.SetAuthService(_authService);
+                Show();
+                Activate();
             }
             else
             {
-                // User cancelled login, exit app
                 _forceClose = true;
                 Application.Current.Shutdown();
             }
@@ -96,19 +81,19 @@ namespace SecureGateway.UI.Views
 
         private void OnWindowClosing(object sender, CancelEventArgs e)
         {
-            if (!_forceClose && _viewModel.MinimizeToTray)
+            if (!_forceClose && ViewModel.MinimizeToTray)
             {
                 e.Cancel = true;
                 Hide();
                 return;
             }
 
-            _viewModel.Dispose();
+            ShutdownCleanup();
         }
 
         private void OnWindowStateChanged(object sender, EventArgs e)
         {
-            if (WindowState == WindowState.Minimized && _viewModel.MinimizeToTray)
+            if (WindowState == WindowState.Minimized && ViewModel.MinimizeToTray)
                 Hide();
         }
 
@@ -116,6 +101,15 @@ namespace SecureGateway.UI.Views
         {
             _forceClose = true;
             Close();
+        }
+
+        /// <summary>Stops the proxy engine and restores the system proxy. Safe to call more than once.</summary>
+        public void ShutdownCleanup()
+        {
+            if (_cleanedUp) return;
+            _cleanedUp = true;
+            _forceClose = true;
+            ViewModel.Dispose();
         }
 
         public void ShowFromTray()

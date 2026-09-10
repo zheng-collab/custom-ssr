@@ -10,6 +10,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Supabase;
 using Supabase.Gotrue;
+using Supabase.Gotrue.Exceptions;
 
 namespace SecureGateway.Services
 {
@@ -17,6 +18,7 @@ namespace SecureGateway.Services
     {
         private const string SupabaseUrl = "https://yahzzatmmmdmwalindai.supabase.co";
         private const string SupabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlhaHp6YXRtbW1kbXdhbGluZGFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODA1NzMsImV4cCI6MjA4NzM1NjU3M30._OKdLLUDN80GR7nMHYsI3S0WmzPmGw-7QmpZYEIREj4";
+        private const string RequiredPermission = "gateway.access";
         private const int SessionMaxDays = 120;
 
         private static readonly string AppDataDir = Path.Combine(
@@ -26,9 +28,10 @@ namespace SecureGateway.Services
         private static readonly string TokenFile = Path.Combine(AppDataDir, "auth_session.json");
         private static readonly string CredentialsFile = Path.Combine(AppDataDir, "saved_credentials.dat");
 
-        private static readonly HttpClient Http = new();
+        private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(20) };
 
         private Supabase.Client _client;
+        private DateTime _loginTimestampUtc = DateTime.UtcNow;
 
         public bool IsAuthenticated => _client?.Auth?.CurrentSession != null;
         public string UserEmail => _client?.Auth?.CurrentUser?.Email ?? "";
@@ -42,14 +45,21 @@ namespace SecureGateway.Services
 
         public async Task InitializeAsync()
         {
-            var options = new SupabaseOptions
+            _client = new Supabase.Client(SupabaseUrl, SupabaseAnonKey, new SupabaseOptions
             {
                 AutoRefreshToken = true,
                 AutoConnectRealtime = false
-            };
-
-            _client = new Supabase.Client(SupabaseUrl, SupabaseAnonKey, options);
+            });
             await _client.InitializeAsync();
+
+            // Supabase rotates refresh tokens. Persist every refresh so the next launch
+            // (on this device) can restore the session; otherwise the stored token goes
+            // stale and every device with the same account keeps getting logged out.
+            _client.Auth.AddStateChangedListener((sender, state) =>
+            {
+                if (state == Supabase.Gotrue.Constants.AuthState.TokenRefreshed && sender.CurrentSession != null)
+                    _ = PersistSessionAsync(sender.CurrentSession);
+            });
 
             await TryRestoreSessionAsync();
         }
@@ -66,24 +76,27 @@ namespace SecureGateway.Services
                     return AuthResult.Failure(error);
 
                 var session = await _client.Auth.SetSession(accessToken, refreshToken);
-                if (session == null)
+                if (session?.User == null)
                     return AuthResult.Failure("Sign in failed. Could not establish session.");
 
-                var userId = session.User?.Id;
-                if (string.IsNullOrEmpty(userId) || !await CheckGatewayAccessAsync(userId))
+                var access = await CheckGatewayAccessAsync(session.User.Id);
+                if (access != true)
                 {
-                    try { await _client.Auth.SignOut(); } catch { }
-                    return AuthResult.Failure("Access denied. Your account does not have gateway access.");
+                    await SignOutSdkAsync();
+                    return AuthResult.Failure(access == false
+                        ? "Access denied. Your account does not have gateway access."
+                        : "Could not verify account permissions. Please try again.");
                 }
 
-                await SaveSessionAsync(session);
+                _loginTimestampUtc = DateTime.UtcNow;
+                await PersistSessionAsync(session);
 
                 if (rememberMe)
                     SaveCredentials(email, password);
                 else
                     ClearCredentials();
 
-                return AuthResult.Success(session.User?.Email ?? email);
+                return AuthResult.Success(session.User.Email ?? email);
             }
             catch (Exception ex)
             {
@@ -102,21 +115,14 @@ namespace SecureGateway.Services
                 if (error != null)
                     return AuthResult.Failure(error);
 
-                if (string.IsNullOrEmpty(accessToken))
-                {
+                // No tokens means e-mail confirmation is required before the account is usable.
+                if (string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(refreshToken))
                     return AuthResult.SuccessWithMessage(
-                        "Account created. Please check your email to confirm your account before signing in.");
-                }
+                        "Account created. Check your e-mail to confirm the account, then sign in.");
 
-                var session = await _client.Auth.SetSession(accessToken, refreshToken);
-                if (session?.User != null)
-                {
-                    await SaveSessionAsync(session);
-                    return AuthResult.Success(session.User.Email ?? email);
-                }
-
+                // Account is live but has no gateway.access yet — don't keep the session.
                 return AuthResult.SuccessWithMessage(
-                    "Account created. Please check your email to confirm your account before signing in.");
+                    "Account created. Ask your administrator to grant gateway access, then sign in.");
             }
             catch (Exception ex)
             {
@@ -126,7 +132,7 @@ namespace SecureGateway.Services
 
         public async Task SignOutAsync()
         {
-            try { await _client.Auth.SignOut(); } catch { }
+            await SignOutSdkAsync();
             ClearSavedSession();
             ClearCredentials();
         }
@@ -137,11 +143,9 @@ namespace SecureGateway.Services
             {
                 if (!File.Exists(CredentialsFile)) return null;
 
-                var encryptedBytes = File.ReadAllBytes(CredentialsFile);
-                var decryptedBytes = ProtectedData.Unprotect(
-                    encryptedBytes, null, DataProtectionScope.CurrentUser);
-                var json = Encoding.UTF8.GetString(decryptedBytes);
-                return JsonConvert.DeserializeObject<SavedCredentials>(json);
+                var decrypted = ProtectedData.Unprotect(
+                    File.ReadAllBytes(CredentialsFile), null, DataProtectionScope.CurrentUser);
+                return JsonConvert.DeserializeObject<SavedCredentials>(Encoding.UTF8.GetString(decrypted));
             }
             catch
             {
@@ -153,120 +157,136 @@ namespace SecureGateway.Services
         private async Task<(string accessToken, string refreshToken, string error)> AuthViaRestAsync(
             string url, object payload)
         {
-            var request = new HttpRequestMessage(HttpMethod.Post, url);
+            using var request = new HttpRequestMessage(HttpMethod.Post, url);
             request.Headers.Add("apikey", SupabaseAnonKey);
             request.Content = new StringContent(
                 JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
 
-            var response = await Http.SendAsync(request);
+            using var response = await Http.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
-                var err = JObject.Parse(body);
-                var msg = err["error_description"]?.ToString()
-                       ?? err["msg"]?.ToString()
-                       ?? "Authentication failed. Please check your credentials.";
-                return (null, null, msg);
+                string msg = null;
+                try
+                {
+                    var err = JObject.Parse(body);
+                    msg = err["error_description"]?.ToString() ?? err["msg"]?.ToString();
+                }
+                catch { }
+
+                return (null, null, msg ?? "Authentication failed. Please check your credentials.");
             }
 
             var data = JObject.Parse(body);
-            var accessToken = data["access_token"]?.ToString();
-            var refreshToken = data["refresh_token"]?.ToString();
-
-            return (accessToken, refreshToken, null);
-        }
-
-        private void SaveCredentials(string email, string password)
-        {
-            try
-            {
-                Directory.CreateDirectory(AppDataDir);
-                var creds = new SavedCredentials { Email = email, Password = password };
-                var json = JsonConvert.SerializeObject(creds);
-                var plainBytes = Encoding.UTF8.GetBytes(json);
-                var encryptedBytes = ProtectedData.Protect(
-                    plainBytes, null, DataProtectionScope.CurrentUser);
-                File.WriteAllBytes(CredentialsFile, encryptedBytes);
-            }
-            catch { }
-        }
-
-        private void ClearCredentials()
-        {
-            try { if (File.Exists(CredentialsFile)) File.Delete(CredentialsFile); } catch { }
+            return (data["access_token"]?.ToString(), data["refresh_token"]?.ToString(), null);
         }
 
         private async Task TryRestoreSessionAsync()
         {
+            SavedSession saved;
             try
             {
                 if (!File.Exists(TokenFile)) return;
-
-                var json = await File.ReadAllTextAsync(TokenFile);
-                var saved = JsonConvert.DeserializeObject<SavedSession>(json);
-
-                if (saved == null || string.IsNullOrEmpty(saved.RefreshToken))
-                    return;
-
-                if (!string.IsNullOrEmpty(saved.LoginTimestampUtc)
-                    && DateTime.TryParse(saved.LoginTimestampUtc, null,
-                        System.Globalization.DateTimeStyles.RoundtripKind, out var loginTime)
-                    && (DateTime.UtcNow - loginTime).TotalDays > SessionMaxDays)
-                {
-                    ClearSavedSession();
-                    return;
-                }
-
-                // Load saved tokens into SDK before attempting refresh
-                var session = await _client.Auth.SetSession(saved.AccessToken, saved.RefreshToken);
-                if (session == null)
-                {
-                    ClearSavedSession();
-                    return;
-                }
-
-                // Re-verify permission on session restore
-                var userId = session.User?.Id;
-                if (string.IsNullOrEmpty(userId) || !await CheckGatewayAccessAsync(userId))
-                {
-                    try { await _client.Auth.SignOut(); } catch { }
-                    ClearSavedSession();
-                }
+                saved = JsonConvert.DeserializeObject<SavedSession>(await File.ReadAllTextAsync(TokenFile));
             }
             catch
             {
                 ClearSavedSession();
+                return;
             }
-        }
 
-        private async Task<bool> CheckGatewayAccessAsync(string userId)
-        {
+            if (saved == null || string.IsNullOrEmpty(saved.RefreshToken) || string.IsNullOrEmpty(saved.AccessToken))
+            {
+                ClearSavedSession();
+                return;
+            }
+
+            if (DateTime.TryParse(saved.LoginTimestampUtc, null,
+                    System.Globalization.DateTimeStyles.RoundtripKind, out var loginTime))
+            {
+                if ((DateTime.UtcNow - loginTime).TotalDays > SessionMaxDays)
+                {
+                    ClearSavedSession();
+                    return;
+                }
+                _loginTimestampUtc = loginTime;
+            }
+            else
+            {
+                _loginTimestampUtc = DateTime.UtcNow;
+            }
+
+            Session session;
             try
             {
-                var accessToken = _client.Auth.CurrentSession?.AccessToken ?? "";
-
-                var request = new HttpRequestMessage(HttpMethod.Get,
-                    $"{SupabaseUrl}/rest/v1/profiles?id=eq.{userId}&select=permissions");
-                request.Headers.Add("apikey", SupabaseAnonKey);
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var response = await Http.SendAsync(request);
-                var body = await response.Content.ReadAsStringAsync();
-                var rows = JArray.Parse(body);
-
-                if (rows.Count == 0) return false;
-
-                var permissions = rows[0]["permissions"] as JArray;
-                return permissions?.Any(p => p.ToString() == "gateway.access") ?? false;
+                session = await _client.Auth.SetSession(saved.AccessToken, saved.RefreshToken);
+            }
+            catch (GotrueException)
+            {
+                // Server rejected the token (revoked, expired, reused) — force re-login.
+                ClearSavedSession();
+                return;
             }
             catch
             {
-                return false;
+                // Network problem — keep the saved session for next time, stay logged out now.
+                return;
+            }
+
+            if (session?.User == null)
+            {
+                ClearSavedSession();
+                return;
+            }
+
+            // Tokens may have rotated during SetSession; store the current pair immediately.
+            await PersistSessionAsync(session);
+
+            var access = await CheckGatewayAccessAsync(session.User.Id);
+            if (access == false)
+            {
+                await SignOutSdkAsync();
+                ClearSavedSession();
+            }
+            // access == null: server unreachable for the permission lookup. Permission was
+            // verified at login and the 120-day cap still applies, so keep the session.
+        }
+
+        /// <summary>true = allowed, false = denied, null = could not determine.</summary>
+        private async Task<bool?> CheckGatewayAccessAsync(string userId)
+        {
+            if (string.IsNullOrEmpty(userId)) return false;
+
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get,
+                    $"{SupabaseUrl}/rest/v1/profiles?id=eq.{Uri.EscapeDataString(userId)}&select=permissions");
+                request.Headers.Add("apikey", SupabaseAnonKey);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", AccessToken);
+
+                using var response = await Http.SendAsync(request);
+                if (!response.IsSuccessStatusCode)
+                    return (int)response.StatusCode >= 500 ? null : false;
+
+                var rows = JArray.Parse(await response.Content.ReadAsStringAsync());
+                if (rows.Count == 0) return false;
+
+                var permissions = rows[0]["permissions"] as JArray;
+                return permissions?.Any(p => p.ToString() == RequiredPermission) ?? false;
+            }
+            catch
+            {
+                return null;
             }
         }
 
-        private async Task SaveSessionAsync(Session session)
+        private async Task SignOutSdkAsync()
+        {
+            try { await _client.Auth.SignOut(); } catch { }
+        }
+
+        private async Task PersistSessionAsync(Session session)
         {
             try
             {
@@ -275,15 +295,32 @@ namespace SecureGateway.Services
                 {
                     AccessToken = session.AccessToken ?? "",
                     RefreshToken = session.RefreshToken ?? "",
-                    LoginTimestampUtc = DateTime.UtcNow.ToString("o")
+                    LoginTimestampUtc = _loginTimestampUtc.ToString("o")
                 };
-                var json = JsonConvert.SerializeObject(saved);
-                await File.WriteAllTextAsync(TokenFile, json);
+                await File.WriteAllTextAsync(TokenFile, JsonConvert.SerializeObject(saved));
             }
             catch { }
         }
 
-        private void ClearSavedSession()
+        private void SaveCredentials(string email, string password)
+        {
+            try
+            {
+                Directory.CreateDirectory(AppDataDir);
+                var json = JsonConvert.SerializeObject(new SavedCredentials { Email = email, Password = password });
+                var encrypted = ProtectedData.Protect(
+                    Encoding.UTF8.GetBytes(json), null, DataProtectionScope.CurrentUser);
+                File.WriteAllBytes(CredentialsFile, encrypted);
+            }
+            catch { }
+        }
+
+        private static void ClearCredentials()
+        {
+            try { if (File.Exists(CredentialsFile)) File.Delete(CredentialsFile); } catch { }
+        }
+
+        private static void ClearSavedSession()
         {
             try { if (File.Exists(TokenFile)) File.Delete(TokenFile); } catch { }
         }

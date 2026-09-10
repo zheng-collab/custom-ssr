@@ -276,12 +276,25 @@ namespace SecureGateway.UI.ViewModels
             IsConnecting = false;
         }
 
-        private async Task DisconnectAsync()
+        public async Task DisconnectAsync()
         {
             await _connectionService.DisconnectAsync();
             IsConnected = false;
+            IsConnecting = false;
             StatusText = "Disconnected";
             ConnectionInfo = "Not connected to any server";
+        }
+
+        /// <summary>Drops shared servers from the list (used on logout so the next user starts clean).</summary>
+        public void ClearSharedServers()
+        {
+            foreach (var s in Servers.Where(s => s.IsShared).ToList())
+                Servers.Remove(s);
+
+            if (SelectedServer != null && SelectedServer.IsShared)
+                SelectedServer = Servers.FirstOrDefault();
+
+            UserEmail = "";
         }
 
         private async Task ToggleConnectionAsync()

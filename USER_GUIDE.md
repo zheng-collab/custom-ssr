@@ -169,7 +169,7 @@ Each server entry shows:
 - **Server Name** — A friendly name you assign.
 - **Protocol** — V2Ray or Shadowsocks.
 - **Address:Port** — The server's IP/domain and port.
-- **Local Ports** — SOCKS5 and HTTP proxy ports (default: 10808 / 10809).
+- **Local Ports** — SOCKS5 and HTTP proxy ports (default: 10808 / 10809). If a port is already in use — for example by another Windows user running SecureGateway on the same PC, or by another proxy tool — the app automatically picks the next free port and notes it in the Log tab.
 - **Remarks** — Optional notes.
 
 ### Toolbar Buttons
@@ -435,7 +435,7 @@ When minimized, SecureGateway sits in the Windows system tray (notification area
 | Engine fails to start | Ensure `v2ray-core/v2ray.exe` exists in the correct directory. |
 | Connection timeout | Verify the server address, port, and that the server is running. |
 | TLS handshake failure | Check that TLS settings (SNI, certificates) match your server configuration. |
-| Port conflict | Change the local SOCKS5/HTTP ports if another app is using 10808/10809. |
+| Port conflict | Handled automatically — the app picks the next free port and logs it. Check the Log tab if you configured another app to use 127.0.0.1:10808 manually. |
 
 ### System proxy not working
 
@@ -632,7 +632,7 @@ SecureGateway/
 - **服务器名称** — 您指定的友好名称。
 - **协议** — V2Ray 或 Shadowsocks。
 - **地址:端口** — 服务器 IP/域名和端口号。
-- **本地端口** — SOCKS5 和 HTTP 代理端口（默认：10808 / 10809）。
+- **本地端口** — SOCKS5 和 HTTP 代理端口（默认：10808 / 10809）。如果端口已被占用（例如同一台电脑上另一个 Windows 用户也在运行 SecureGateway，或其他代理软件），应用会自动选择下一个可用端口，并在日志标签页中记录。
 - **备注** — 可选的说明文字。
 
 ### 工具栏按钮
@@ -898,7 +898,7 @@ SecureGateway 支持从标准分享链接格式导入服务器：
 | 引擎启动失败 | 确保 `v2ray-core/v2ray.exe` 存在于正确目录中。 |
 | 连接超时 | 验证服务器地址、端口，确认服务器正在运行。 |
 | TLS 握手失败 | 检查 TLS 设置（SNI、证书）是否与服务器配置匹配。 |
-| 端口冲突 | 如果其他应用占用了 10808/10809，请更改本地端口。 |
+| 端口冲突 | 自动处理——应用会选择下一个可用端口并记录在日志中。如果您手动将其他应用配置为使用 127.0.0.1:10808，请查看日志标签页确认实际端口。 |
 
 ### 系统代理不工作
 

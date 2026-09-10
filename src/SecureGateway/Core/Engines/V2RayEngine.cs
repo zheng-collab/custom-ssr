@@ -6,16 +6,24 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using SecureGateway.Models;
+using SecureGateway.Utils;
 
 namespace SecureGateway.Core.Engines
 {
+    /// <summary>
+    /// Drives a local v2ray-core process. Builds a VMess or Shadowsocks outbound
+    /// depending on the profile, so one engine serves every server type.
+    /// </summary>
     public class V2RayEngine : IProxyEngine
     {
-        private const int StatsApiPort = 10813;
+        private const int DefaultStatsApiPort = 10813;
+        private const int StartupTimeoutMs = 8000;
+        private const string StatsPrefix = "outbound>>>proxy>>>traffic>>>";
 
-        private Process _process;
         private readonly string _v2rayPath;
         private readonly string _configDir;
+        private Process _process;
+        private int _statsApiPort = DefaultStatsApiPort;
         private bool _disposed;
 
         public EngineStatus Status { get; private set; } = EngineStatus.Stopped;
@@ -24,8 +32,7 @@ namespace SecureGateway.Core.Engines
 
         public V2RayEngine()
         {
-            var appDir = AppDomain.CurrentDomain.BaseDirectory;
-            _v2rayPath = Path.Combine(appDir, "v2ray-core", "v2ray.exe");
+            _v2rayPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "v2ray-core", "v2ray.exe");
             _configDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "SecureGateway", "v2ray");
@@ -39,18 +46,21 @@ namespace SecureGateway.Core.Engines
 
             SetStatus(EngineStatus.Starting, "Generating V2Ray configuration...");
 
-            var configPath = Path.Combine(_configDir, "config.json");
-            var config = GenerateConfig(profile);
-            await File.WriteAllTextAsync(configPath, config);
-
-            Log($"V2Ray config written to {configPath}");
-
             if (!File.Exists(_v2rayPath))
             {
                 SetStatus(EngineStatus.Error,
-                    "v2ray-core not found. Please download v2ray-core and place it in the v2ray-core directory.");
+                    "v2ray-core not found. Reinstall the app or place v2ray.exe in the v2ray-core folder.");
                 return;
             }
+
+            if (profile.Protocol == ProxyProtocol.Shadowsocks && !string.IsNullOrEmpty(profile.SsPlugin))
+                Log($"Shadowsocks plugin '{profile.SsPlugin}' is not supported and will be ignored.", "Warning");
+
+            _statsApiPort = PortHelper.FindFreePort(DefaultStatsApiPort, profile.LocalSocksPort, profile.LocalHttpPort);
+
+            var configPath = Path.Combine(_configDir, "config.json");
+            await File.WriteAllTextAsync(configPath, GenerateConfig(profile));
+            Log($"V2Ray config written to {configPath}");
 
             try
             {
@@ -71,16 +81,12 @@ namespace SecureGateway.Core.Engines
 
                 _process.OutputDataReceived += (s, e) =>
                 {
-                    if (!string.IsNullOrEmpty(e.Data))
-                        Log(e.Data);
+                    if (!string.IsNullOrEmpty(e.Data)) Log(e.Data);
                 };
-
                 _process.ErrorDataReceived += (s, e) =>
                 {
-                    if (!string.IsNullOrEmpty(e.Data))
-                        Log(e.Data, "Error");
+                    if (!string.IsNullOrEmpty(e.Data)) Log(e.Data, "Error");
                 };
-
                 _process.Exited += (s, e) =>
                 {
                     if (Status == EngineStatus.Running)
@@ -91,20 +97,23 @@ namespace SecureGateway.Core.Engines
                 _process.BeginOutputReadLine();
                 _process.BeginErrorReadLine();
 
-                await Task.Delay(1500);
-
-                if (_process.HasExited)
+                if (!await WaitForListeningAsync(profile.LocalSocksPort))
                 {
-                    SetStatus(EngineStatus.Error, $"V2Ray failed to start (exit code: {_process.ExitCode}).");
+                    var reason = _process != null && _process.HasExited
+                        ? $"V2Ray exited with code {_process.ExitCode}. See the Log tab for details."
+                        : $"V2Ray did not open local port {profile.LocalSocksPort} in time.";
+                    await KillProcessAsync();
+                    SetStatus(EngineStatus.Error, reason);
                     return;
                 }
 
                 SetStatus(EngineStatus.Running,
-                    $"Connected to {profile.Address}:{profile.Port} via V2Ray ({profile.V2RayTransport})");
-                Log($"V2Ray started. SOCKS5: 127.0.0.1:{profile.LocalSocksPort}, HTTP: 127.0.0.1:{profile.LocalHttpPort}");
+                    $"Connected to {profile.Address}:{profile.Port} via {DescribeProtocol(profile)}");
+                Log($"Local proxy ready. SOCKS5: 127.0.0.1:{profile.LocalSocksPort}, HTTP: 127.0.0.1:{profile.LocalHttpPort}");
             }
             catch (Exception ex)
             {
+                await KillProcessAsync();
                 SetStatus(EngineStatus.Error, $"Failed to start V2Ray: {ex.Message}");
             }
         }
@@ -112,25 +121,7 @@ namespace SecureGateway.Core.Engines
         public async Task StopAsync()
         {
             SetStatus(EngineStatus.Stopping, "Stopping V2Ray...");
-
-            if (_process != null && !_process.HasExited)
-            {
-                try
-                {
-                    _process.Kill(entireProcessTree: true);
-                    await _process.WaitForExitAsync();
-                }
-                catch (Exception ex)
-                {
-                    Log($"Error stopping V2Ray: {ex.Message}", "Warning");
-                }
-                finally
-                {
-                    _process.Dispose();
-                    _process = null;
-                }
-            }
-
+            await KillProcessAsync();
             SetStatus(EngineStatus.Stopped, "V2Ray stopped.");
         }
 
@@ -142,17 +133,16 @@ namespace SecureGateway.Core.Engines
                 {
                     var proxy = new System.Net.WebProxy($"http://127.0.0.1:{profile.LocalHttpPort}");
                     using var handler = new HttpClientHandler { Proxy = proxy };
-                    using var proxyClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
+                    using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
 
                     var sw = Stopwatch.StartNew();
-                    // Use cp.cloudflare.com (works globally) with google as fallback
                     try
                     {
-                        await proxyClient.GetAsync("http://cp.cloudflare.com/");
+                        await client.GetAsync("http://cp.cloudflare.com/");
                     }
                     catch
                     {
-                        await proxyClient.GetAsync("https://www.google.com/generate_204");
+                        await client.GetAsync("https://www.google.com/generate_204");
                     }
                     sw.Stop();
                     return sw.Elapsed.TotalMilliseconds;
@@ -179,7 +169,7 @@ namespace SecureGateway.Core.Engines
                     StartInfo = new ProcessStartInfo
                     {
                         FileName = _v2rayPath,
-                        Arguments = $"api stats --server=127.0.0.1:{StatsApiPort} -json",
+                        Arguments = $"api stats --server=127.0.0.1:{_statsApiPort} -json",
                         UseShellExecute = false,
                         CreateNoWindow = true,
                         RedirectStandardOutput = true,
@@ -198,24 +188,20 @@ namespace SecureGateway.Core.Engines
                 }
 
                 var output = await outputTask;
-
                 if (proc.ExitCode != 0 || string.IsNullOrWhiteSpace(output))
                     return (0, 0);
 
-                var json = JObject.Parse(output);
                 long uplink = 0, downlink = 0;
-
-                var stats = json["stat"] as JArray;
-                if (stats != null)
+                if (JObject.Parse(output)["stat"] is JArray stats)
                 {
                     foreach (var stat in stats)
                     {
                         var name = stat["name"]?.ToString() ?? "";
-                        var val = long.TryParse(stat["value"]?.ToString(), out var v) ? v : 0;
-                        if (name.Contains("uplink"))
-                            uplink = val;
-                        else if (name.Contains("downlink"))
-                            downlink = val;
+                        if (!name.StartsWith(StatsPrefix)) continue;
+
+                        var value = long.TryParse(stat["value"]?.ToString(), out var v) ? v : 0;
+                        if (name.EndsWith("uplink")) uplink = value;
+                        else if (name.EndsWith("downlink")) downlink = value;
                     }
                 }
 
@@ -227,14 +213,53 @@ namespace SecureGateway.Core.Engines
             }
         }
 
+        private async Task<bool> WaitForListeningAsync(int port)
+        {
+            var sw = Stopwatch.StartNew();
+            while (sw.ElapsedMilliseconds < StartupTimeoutMs)
+            {
+                var proc = _process;
+                if (proc == null || proc.HasExited) return false;
+                if (await PortHelper.IsListeningAsync(port)) return true;
+                await Task.Delay(200);
+            }
+            return false;
+        }
+
+        private async Task KillProcessAsync()
+        {
+            var proc = _process;
+            _process = null;
+            if (proc == null) return;
+
+            try
+            {
+                if (!proc.HasExited)
+                {
+                    proc.Kill(entireProcessTree: true);
+                    await proc.WaitForExitAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"Error stopping V2Ray: {ex.Message}", "Warning");
+            }
+            finally
+            {
+                proc.Dispose();
+            }
+        }
+
+        private static string DescribeProtocol(ServerProfile profile) =>
+            profile.Protocol == ProxyProtocol.Shadowsocks
+                ? $"Shadowsocks ({profile.SsEncryption})"
+                : $"V2Ray ({profile.V2RayTransport})";
+
         private string GenerateConfig(ServerProfile profile)
         {
             var config = new JObject
             {
-                ["log"] = new JObject
-                {
-                    ["loglevel"] = "warning"
-                },
+                ["log"] = new JObject { ["loglevel"] = "warning" },
                 ["stats"] = new JObject(),
                 ["api"] = new JObject
                 {
@@ -257,11 +282,7 @@ namespace SecureGateway.Core.Engines
                         ["port"] = profile.LocalSocksPort,
                         ["listen"] = "127.0.0.1",
                         ["protocol"] = "socks",
-                        ["settings"] = new JObject
-                        {
-                            ["auth"] = "noauth",
-                            ["udp"] = true
-                        },
+                        ["settings"] = new JObject { ["auth"] = "noauth", ["udp"] = true },
                         ["sniffing"] = new JObject
                         {
                             ["enabled"] = true,
@@ -274,26 +295,20 @@ namespace SecureGateway.Core.Engines
                         ["port"] = profile.LocalHttpPort,
                         ["listen"] = "127.0.0.1",
                         ["protocol"] = "http",
-                        ["settings"] = new JObject
-                        {
-                            ["allowTransparent"] = false
-                        }
+                        ["settings"] = new JObject { ["allowTransparent"] = false }
                     },
                     new JObject
                     {
                         ["tag"] = "api-in",
-                        ["port"] = StatsApiPort,
+                        ["port"] = _statsApiPort,
                         ["listen"] = "127.0.0.1",
                         ["protocol"] = "dokodemo-door",
-                        ["settings"] = new JObject
-                        {
-                            ["address"] = "127.0.0.1"
-                        }
+                        ["settings"] = new JObject { ["address"] = "127.0.0.1" }
                     }
                 },
                 ["outbounds"] = new JArray
                 {
-                    BuildV2RayOutbound(profile),
+                    BuildProxyOutbound(profile),
                     new JObject
                     {
                         ["tag"] = "direct",
@@ -304,28 +319,15 @@ namespace SecureGateway.Core.Engines
                     {
                         ["tag"] = "block",
                         ["protocol"] = "blackhole",
-                        ["settings"] = new JObject
-                        {
-                            ["response"] = new JObject { ["type"] = "http" }
-                        }
+                        ["settings"] = new JObject { ["response"] = new JObject { ["type"] = "http" } }
                     }
-                },
-                ["dns"] = new JObject
-                {
-                    ["servers"] = new JArray(
-                        new JObject
-                        {
-                            ["address"] = "https+local://dns.google/dns-query",
-                            ["domains"] = new JArray("geosite:geolocation-!cn")
-                        },
-                        "8.8.8.8",
-                        "1.1.1.1",
-                        "localhost"
-                    )
                 },
                 ["routing"] = new JObject
                 {
-                    ["domainStrategy"] = "IPIfNonMatch",
+                    // AsIs: never resolve domains locally. Local DNS is unreliable in
+                    // restricted networks and would stall every new connection; the
+                    // remote server resolves instead.
+                    ["domainStrategy"] = "AsIs",
                     ["rules"] = new JArray
                     {
                         new JObject
@@ -359,26 +361,59 @@ namespace SecureGateway.Core.Engines
             return config.ToString(Formatting.Indented);
         }
 
-        private JObject BuildV2RayOutbound(ServerProfile profile)
+        private static JObject BuildProxyOutbound(ServerProfile profile)
         {
-            var vnext = new JObject
+            return profile.Protocol == ProxyProtocol.Shadowsocks
+                ? BuildShadowsocksOutbound(profile)
+                : BuildVmessOutbound(profile);
+        }
+
+        private static JObject BuildShadowsocksOutbound(ServerProfile profile)
+        {
+            var method = profile.SsEncryption switch
             {
-                ["address"] = profile.Address,
-                ["port"] = profile.Port,
-                ["users"] = new JArray
-                {
-                    new JObject
-                    {
-                        ["id"] = profile.V2RayUserId,
-                        ["alterId"] = profile.V2RayAlterId,
-                        ["security"] = profile.V2RaySecurity
-                    }
-                }
+                ShadowsocksEncryption.Aes128Gcm => "aes-128-gcm",
+                ShadowsocksEncryption.Aes256Gcm => "aes-256-gcm",
+                ShadowsocksEncryption.ChaCha20IetfPoly1305 => "chacha20-ietf-poly1305",
+                ShadowsocksEncryption.XChaCha20IetfPoly1305 => "xchacha20-ietf-poly1305",
+                _ => "aes-256-gcm"
             };
+
+            return new JObject
+            {
+                ["tag"] = "proxy",
+                ["protocol"] = "shadowsocks",
+                ["settings"] = new JObject
+                {
+                    ["servers"] = new JArray
+                    {
+                        new JObject
+                        {
+                            ["address"] = profile.Address,
+                            ["port"] = profile.Port,
+                            ["method"] = method,
+                            ["password"] = profile.SsPassword
+                        }
+                    }
+                },
+                ["streamSettings"] = new JObject { ["network"] = "tcp" }
+            };
+        }
+
+        private static JObject BuildVmessOutbound(ServerProfile profile)
+        {
+            var host = string.IsNullOrEmpty(profile.V2RayHost) ? profile.Address : profile.V2RayHost;
 
             var streamSettings = new JObject
             {
-                ["network"] = profile.V2RayTransport.ToString().ToLower()
+                ["network"] = profile.V2RayTransport switch
+                {
+                    V2RayTransport.WebSocket => "ws",
+                    V2RayTransport.HTTP2 => "h2",
+                    V2RayTransport.GRPC => "grpc",
+                    V2RayTransport.QUIC => "quic",
+                    _ => "tcp"
+                }
             };
 
             switch (profile.V2RayTransport)
@@ -387,12 +422,7 @@ namespace SecureGateway.Core.Engines
                     streamSettings["wsSettings"] = new JObject
                     {
                         ["path"] = profile.V2RayPath,
-                        ["headers"] = new JObject
-                        {
-                            ["Host"] = string.IsNullOrEmpty(profile.V2RayHost)
-                                ? profile.Address
-                                : profile.V2RayHost
-                        }
+                        ["headers"] = new JObject { ["Host"] = host }
                     };
                     break;
 
@@ -400,10 +430,7 @@ namespace SecureGateway.Core.Engines
                     streamSettings["httpSettings"] = new JObject
                     {
                         ["path"] = profile.V2RayPath,
-                        ["host"] = new JArray(
-                            string.IsNullOrEmpty(profile.V2RayHost)
-                                ? profile.Address
-                                : profile.V2RayHost)
+                        ["host"] = new JArray(host)
                     };
                     break;
 
@@ -415,7 +442,16 @@ namespace SecureGateway.Core.Engines
                     };
                     break;
 
-                case V2RayTransport.TCP:
+                case V2RayTransport.QUIC:
+                    streamSettings["quicSettings"] = new JObject
+                    {
+                        ["security"] = "none",
+                        ["key"] = "",
+                        ["header"] = new JObject { ["type"] = "none" }
+                    };
+                    break;
+
+                default:
                     streamSettings["tcpSettings"] = new JObject
                     {
                         ["header"] = new JObject { ["type"] = "none" }
@@ -428,9 +464,7 @@ namespace SecureGateway.Core.Engines
                 streamSettings["security"] = "tls";
                 streamSettings["tlsSettings"] = new JObject
                 {
-                    ["serverName"] = string.IsNullOrEmpty(profile.V2RaySni)
-                        ? profile.Address
-                        : profile.V2RaySni,
+                    ["serverName"] = string.IsNullOrEmpty(profile.V2RaySni) ? host : profile.V2RaySni,
                     ["allowInsecure"] = false
                 };
             }
@@ -441,14 +475,25 @@ namespace SecureGateway.Core.Engines
                 ["protocol"] = "vmess",
                 ["settings"] = new JObject
                 {
-                    ["vnext"] = new JArray { vnext }
+                    ["vnext"] = new JArray
+                    {
+                        new JObject
+                        {
+                            ["address"] = profile.Address,
+                            ["port"] = profile.Port,
+                            ["users"] = new JArray
+                            {
+                                new JObject
+                                {
+                                    ["id"] = profile.V2RayUserId,
+                                    ["alterId"] = profile.V2RayAlterId,
+                                    ["security"] = profile.V2RaySecurity
+                                }
+                            }
+                        }
+                    }
                 },
-                ["streamSettings"] = streamSettings,
-                ["mux"] = new JObject
-                {
-                    ["enabled"] = true,
-                    ["concurrency"] = 8
-                }
+                ["streamSettings"] = streamSettings
             };
         }
 
@@ -469,11 +514,12 @@ namespace SecureGateway.Core.Engines
             if (_disposed) return;
             _disposed = true;
 
-            if (_process != null && !_process.HasExited)
-            {
-                try { _process.Kill(entireProcessTree: true); } catch { }
-                _process.Dispose();
-            }
+            var proc = _process;
+            _process = null;
+            if (proc == null) return;
+
+            try { if (!proc.HasExited) proc.Kill(entireProcessTree: true); } catch { }
+            proc.Dispose();
         }
     }
 }

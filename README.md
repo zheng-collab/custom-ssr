@@ -174,7 +174,7 @@ custom-ssr/
 └── src/SecureGateway/
     ├── Core/
     │   ├── Config/             # Configuration management
-    │   ├── Engines/            # V2Ray and Shadowsocks engine wrappers
+    │   ├── Engines/            # v2ray-core wrapper (VMess + Shadowsocks outbounds)
     │   ├── Logging/            # Application logging
     │   └── Routing/            # PAC/routing rule management
     ├── Models/                 # Data models

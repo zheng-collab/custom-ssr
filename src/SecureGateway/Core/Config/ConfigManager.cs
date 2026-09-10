@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Threading.Tasks;
 using Newtonsoft.Json;
 using SecureGateway.Models;
 
@@ -54,31 +53,23 @@ namespace SecureGateway.Core.Config
             }
         }
 
-        public void Save()
+        /// <summary>Last save error, if any. Save never throws — it is called from UI property setters.</summary>
+        public string LastSaveError { get; private set; }
+
+        public bool Save()
         {
             try
             {
                 Directory.CreateDirectory(ConfigDir);
                 var json = JsonConvert.SerializeObject(_config, JsonSettings);
                 File.WriteAllText(ConfigFile, json);
+                LastSaveError = null;
+                return true;
             }
             catch (Exception ex)
             {
-                throw new InvalidOperationException($"Failed to save configuration: {ex.Message}", ex);
-            }
-        }
-
-        public async Task SaveAsync()
-        {
-            try
-            {
-                Directory.CreateDirectory(ConfigDir);
-                var json = JsonConvert.SerializeObject(_config, JsonSettings);
-                await File.WriteAllTextAsync(ConfigFile, json);
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Failed to save configuration: {ex.Message}", ex);
+                LastSaveError = ex.Message;
+                return false;
             }
         }
 
