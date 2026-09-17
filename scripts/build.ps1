@@ -71,8 +71,10 @@ if ($Publish) {
         Copy-Item -Path "$v2raySrc\*" -Destination $v2rayDst -Recurse -Force
         Write-Host "  Copied v2ray-core files to publish output." -ForegroundColor Green
     } else {
-        Write-Host "  WARNING: v2ray-core not found at $v2raySrc" -ForegroundColor Red
-        Write-Host "  Run scripts\setup-v2ray.ps1 first, then rebuild." -ForegroundColor Yellow
+        Write-Host "  ERROR: v2ray-core not found at $v2raySrc" -ForegroundColor Red
+        Write-Host "  It is normally checked into the repository. Run 'git status' to see if it was deleted," -ForegroundColor Yellow
+        Write-Host "  or restore it with scripts\setup-v2ray.ps1, then rebuild." -ForegroundColor Yellow
+        exit 1
     }
 
     Write-Host "  Published to: $PublishDir" -ForegroundColor Green

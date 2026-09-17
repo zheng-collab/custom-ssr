@@ -36,21 +36,15 @@
 
 ### Option A: Run the Pre-Built Executable
 
-1. Download `SecureGateway.exe` from the release package.
-2. Place it in any folder (e.g., `C:\Program Files\SecureGateway\`).
-3. Download **v2ray-core** from [https://github.com/v2fly/v2ray-core/releases](https://github.com/v2fly/v2ray-core/releases).
-4. Extract the v2ray-core files into a `v2ray-core` subdirectory next to the executable.
-5. Double-click `SecureGateway.exe` to launch.
+1. Extract the release package to any folder (e.g., `C:\Program Files\SecureGateway\`). Keep `SecureGateway.exe` and the `v2ray-core` folder together — the engine is bundled, nothing else needs to be installed.
+2. Double-click `SecureGateway.exe` to launch.
 
 ### Option B: Build from Source
 
 ```powershell
-# Clone the repository
+# Clone the repository (v2ray-core is included)
 git clone <repo-url>
 cd custom-ssr
-
-# Download v2ray-core automatically
-.\scripts\setup-v2ray.ps1
 
 # Build and publish
 .\scripts\build.ps1 -Publish
@@ -432,7 +426,7 @@ When minimized, SecureGateway sits in the Windows system tray (notification area
 
 | Problem | Solution |
 |---------|----------|
-| Engine fails to start | Ensure `v2ray-core/v2ray.exe` exists in the correct directory. |
+| Engine fails to start | Ensure the `v2ray-core` folder from the release package is still next to `SecureGateway.exe` (re-extract the package if it was moved or deleted by antivirus). |
 | Connection timeout | Verify the server address, port, and that the server is running. |
 | TLS handshake failure | Check that TLS settings (SNI, certificates) match your server configuration. |
 | Port conflict | Handled automatically — the app picks the next free port and logs it. Check the Log tab if you configured another app to use 127.0.0.1:10808 manually. |
@@ -499,21 +493,15 @@ When minimized, SecureGateway sits in the Windows system tray (notification area
 
 ### 方式 A：运行预编译程序
 
-1. 从发布包下载 `SecureGateway.exe`。
-2. 放置到任意文件夹（如 `C:\Program Files\SecureGateway\`）。
-3. 从 [https://github.com/v2fly/v2ray-core/releases](https://github.com/v2fly/v2ray-core/releases) 下载 **v2ray-core**。
-4. 将 v2ray-core 文件解压到可执行文件旁边的 `v2ray-core` 子目录中。
-5. 双击 `SecureGateway.exe` 启动。
+1. 将发布包解压到任意文件夹（如 `C:\Program Files\SecureGateway\`）。请保持 `SecureGateway.exe` 与 `v2ray-core` 文件夹在同一目录——引擎已内置，无需额外安装任何软件。
+2. 双击 `SecureGateway.exe` 启动。
 
 ### 方式 B：从源码编译
 
 ```powershell
-# 克隆仓库
+# 克隆仓库（已包含 v2ray-core）
 git clone <仓库地址>
 cd custom-ssr
-
-# 自动下载 v2ray-core
-.\scripts\setup-v2ray.ps1
 
 # 编译并发布
 .\scripts\build.ps1 -Publish
@@ -895,7 +883,7 @@ SecureGateway 支持从标准分享链接格式导入服务器：
 
 | 问题 | 解决方案 |
 |------|----------|
-| 引擎启动失败 | 确保 `v2ray-core/v2ray.exe` 存在于正确目录中。 |
+| 引擎启动失败 | 确保发布包中的 `v2ray-core` 文件夹仍与 `SecureGateway.exe` 在同一目录（若被移动或被杀毒软件删除，请重新解压发布包）。 |
 | 连接超时 | 验证服务器地址、端口，确认服务器正在运行。 |
 | TLS 握手失败 | 检查 TLS 设置（SNI、证书）是否与服务器配置匹配。 |
 | 端口冲突 | 自动处理——应用会选择下一个可用端口并记录在日志中。如果您手动将其他应用配置为使用 127.0.0.1:10808，请查看日志标签页确认实际端口。 |

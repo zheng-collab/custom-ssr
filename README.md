@@ -18,9 +18,9 @@ A Windows desktop application for securing your company's internet access using 
 
 ## Prerequisites
 
-- Windows 10/11 (x64)
-- [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (for building)
-- [v2ray-core](https://github.com/v2fly/v2ray-core/releases) (required for V2Ray/Shadowsocks connections)
+**To run the app:** Windows 10/11 (x64). Nothing else — the published build is self-contained and bundles v2ray-core, so end users do not need to install .NET or v2ray.
+
+**To build from source:** [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0). v2ray-core is already checked in under `src/SecureGateway/v2ray-core/` and is copied into the build automatically.
 
 ## Quick Start
 
@@ -37,14 +37,12 @@ cd custom-ssr
 .\scripts\build.ps1 -Publish
 ```
 
-### 2. Install v2ray-core
+### 2. (Optional) Update the bundled v2ray-core
+
+Only needed when you want to move to a newer v2ray release:
 
 ```powershell
-# Automatic download
 .\scripts\setup-v2ray.ps1
-
-# Or manually download from https://github.com/v2fly/v2ray-core/releases
-# and place files in src/SecureGateway/v2ray-core/
 ```
 
 ### 3. Run
@@ -170,7 +168,7 @@ custom-ssr/
 ├── SecureGateway.sln
 ├── scripts/
 │   ├── build.ps1              # Build script
-│   └── setup-v2ray.ps1        # V2Ray core installer
+│   └── setup-v2ray.ps1        # Updates the bundled v2ray-core (optional)
 └── src/SecureGateway/
     ├── Core/
     │   ├── Config/             # Configuration management
