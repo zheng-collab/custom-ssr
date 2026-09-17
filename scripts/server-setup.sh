@@ -11,7 +11,15 @@
 # port 80 is reachable (Let's Encrypt validates over it). TLS is strongly recommended —
 # it hides the traffic pattern and the client refuses self-signed certificates.
 #
-# Re-running the script is safe: it keeps the existing UUID and reissues the config.
+# Auto-publish to Supabase (so the server appears in every user's app, no copy/paste):
+#
+#   SG_EMAIL=admin@company.com SG_PASSWORD='secret' bash server-setup.sh [domain]
+#
+# The account must have the "gateway.admin" permission (see supabase-shared-servers.sql).
+# Works as a Vultr "Startup Script" too — the server registers itself on first boot.
+#
+# Re-running the script is safe: it keeps the existing UUID and reissues the config;
+# re-publishing updates the existing Supabase row instead of adding a duplicate.
 
 set -euo pipefail
 
@@ -22,6 +30,12 @@ CONF_DIR=/usr/local/etc/v2ray
 CONF="$CONF_DIR/config.json"
 CERT_DIR="$CONF_DIR/tls"
 NAME="${NAME:-Vultr $(hostname -s 2>/dev/null || echo VPS)}"
+
+# Same project + public anon key the Windows app is built with.
+SUPABASE_URL="${SUPABASE_URL:-https://yahzzatmmmdmwalindai.supabase.co}"
+SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlhaHp6YXRtbW1kbXdhbGluZGFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODA1NzMsImV4cCI6MjA4NzM1NjU3M30._OKdLLUDN80GR7nMHYsI3S0WmzPmGw-7QmpZYEIREj4}"
+SG_EMAIL="${SG_EMAIL:-}"
+SG_PASSWORD="${SG_PASSWORD:-}"
 
 log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
@@ -170,8 +184,88 @@ cat <<EOF
 
 $VMESS_LINK
 
-  To share this server with every user of the app: import it, select it,
-  click Share. It is then stored in Supabase and appears for all accounts.
+EOF
+
+# ---- publish to Supabase shared_servers ---------------------------------------------
+publish_to_supabase() {
+    command -v python3 >/dev/null || { echo "  python3 missing — skipping Supabase publish"; return; }
+
+    SG_EMAIL="$SG_EMAIL" SG_PASSWORD="$SG_PASSWORD" SUPABASE_URL="$SUPABASE_URL" \
+    SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" NAME="$NAME" ADDRESS="$ADDRESS" PORT="$PORT" \
+    UUID="$UUID" WS_PATH="$WS_PATH" TLS="$TLS" SNI="${DOMAIN:-}" \
+    python3 - <<'PY'
+import json, os, sys, urllib.request, urllib.error, urllib.parse
+
+url, key = os.environ["SUPABASE_URL"], os.environ["SUPABASE_ANON_KEY"]
+
+def call(method, path, body=None, token=None, prefer=None):
+    req = urllib.request.Request(url + path, method=method,
+                                 data=json.dumps(body).encode() if body is not None else None)
+    req.add_header("apikey", key)
+    req.add_header("Content-Type", "application/json")
+    if token:  req.add_header("Authorization", "Bearer " + token)
+    if prefer: req.add_header("Prefer", prefer)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            raw = r.read().decode()
+            return r.status, (json.loads(raw) if raw else None)
+    except urllib.error.HTTPError as e:
+        raw = e.read().decode()
+        try: return e.code, json.loads(raw)
+        except Exception: return e.code, raw
+
+status, auth = call("POST", "/auth/v1/token?grant_type=password",
+                    {"email": os.environ["SG_EMAIL"], "password": os.environ["SG_PASSWORD"]})
+if status != 200:
+    msg = auth.get("error_description") or auth.get("msg") if isinstance(auth, dict) else auth
+    print(f"  Supabase sign-in failed ({status}): {msg}"); sys.exit(0)
+token, uid = auth["access_token"], auth["user"]["id"]
+
+row = {
+    "name": os.environ["NAME"], "address": os.environ["ADDRESS"], "port": int(os.environ["PORT"]),
+    "protocol": "V2Ray", "v2ray_user_id": os.environ["UUID"], "v2ray_alter_id": 0,
+    "v2ray_security": "auto", "v2ray_transport": "WebSocket", "v2ray_path": os.environ["WS_PATH"],
+    "v2ray_host": os.environ["ADDRESS"], "v2ray_tls": os.environ["TLS"] == "true",
+    "v2ray_sni": os.environ["SNI"], "remarks": "registered by server-setup.sh",
+    "enabled": True, "created_by": uid,
+}
+
+q = "/rest/v1/shared_servers?address=eq.%s&port=eq.%s&select=id" % (
+    urllib.parse.quote(row["address"]), row["port"])
+status, existing = call("GET", q, token=token)
+if status == 200 and existing:
+    sid = existing[0]["id"]
+    status, resp = call("PATCH", "/rest/v1/shared_servers?id=eq." + sid, row, token, "return=minimal")
+    action = "updated"
+else:
+    status, resp = call("POST", "/rest/v1/shared_servers", row, token, "return=minimal")
+    action = "published"
+
+if status in (200, 201, 204):
+    print(f"  Supabase: server {action} as '{row['name']}' — it will appear in every user's app on next sync/login.")
+else:
+    hint = ""
+    if status in (401, 403) or (isinstance(resp, dict) and "policy" in json.dumps(resp).lower()):
+        hint = " (does this account have gateway.admin? see scripts/supabase-shared-servers.sql)"
+    if status == 404:
+        hint = " (shared_servers table missing — run scripts/supabase-shared-servers.sql in the Supabase SQL editor)"
+    print(f"  Supabase publish failed ({status}): {resp}{hint}")
+PY
+}
+
+if [ -n "$SG_EMAIL" ] && [ -n "$SG_PASSWORD" ]; then
+    publish_to_supabase
+else
+    cat <<EOF
+  To share this server with every user of the app, either import it in the app,
+  select it and click Share — or re-run this script with your admin login so it
+  registers itself:
+
+    SG_EMAIL=you@company.com SG_PASSWORD='...' bash server-setup.sh ${DOMAIN}
+EOF
+fi
+
+cat <<EOF
 
   Server log: journalctl -u v2ray -f
 ========================================================================

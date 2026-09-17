@@ -341,6 +341,29 @@ bash server-setup.sh                   # no TLS
 bash server-setup.sh vpn.example.com   # with TLS (recommended; point the DNS A record first)
 ```
 
+**Fully automatic (server registers itself in Supabase):** give the script your admin login and it publishes the server straight into the `shared_servers` table. Every user's app then shows it on next login or Sync, with no copy/paste at all:
+
+```bash
+SG_EMAIL=admin@company.com SG_PASSWORD='your-password' bash server-setup.sh vpn.example.com
+```
+
+The account needs the `gateway.admin` permission and the `shared_servers` table must exist (run `scripts/supabase-shared-servers.sql` once in the Supabase SQL editor). Re-running updates the existing row rather than adding a duplicate.
+
+**Zero-touch on Vultr (Startup Script):** so that every new server you create is ready and registered on first boot:
+
+1. Vultr dashboard → **Orchestration → Startup Scripts → Add Startup Script**, type *Boot*.
+2. Paste this as the script, filling in your admin login and (optionally) domain:
+   ```bash
+   #!/bin/bash
+   export SG_EMAIL='admin@company.com' SG_PASSWORD='your-password'
+   curl -fsSL https://raw.githubusercontent.com/zheng-collab/custom-ssr/claude/windows-vpn-app-mPjrB/scripts/server-setup.sh \
+     -o /root/server-setup.sh && bash /root/server-setup.sh > /root/server-setup.log 2>&1
+   ```
+3. When deploying a new instance (Ubuntu 22.04 or 24.04), pick that Startup Script under *Additional Features*.
+4. About two minutes after the instance boots, open SecureGateway and click **Sync**. The server is there. If not, check `/root/server-setup.log` on the instance.
+
+The Startup Script stores your admin password in Vultr; use a dedicated admin account whose only permission is `gateway.admin`, not your personal login.
+
 **Manual way** (what the script does, step by step):
 
 1. **Provision a VPS** — Any Linux VPS works (Ubuntu 22.04 recommended). Providers: Vultr, DigitalOcean, Linode, etc.
@@ -811,6 +834,29 @@ ssh root@服务器IP
 bash server-setup.sh                   # 不启用 TLS
 bash server-setup.sh vpn.example.com   # 启用 TLS（推荐；请先将域名 A 记录指向服务器）
 ```
+
+**全自动（服务器自行注册到 Supabase）：** 向脚本提供管理员账号，它会把服务器直接写入 `shared_servers` 表。所有用户的应用在下次登录或点击"同步"时即可看到，无需任何复制粘贴：
+
+```bash
+SG_EMAIL=admin@company.com SG_PASSWORD='您的密码' bash server-setup.sh vpn.example.com
+```
+
+该账号需要 `gateway.admin` 权限，且 `shared_servers` 表必须已存在（在 Supabase SQL 编辑器中运行一次 `scripts/supabase-shared-servers.sql`）。重复运行会更新现有记录，不会产生重复项。
+
+**Vultr 零接触部署（Startup Script）：** 让每台新建的服务器在首次启动时自动完成配置并注册：
+
+1. Vultr 控制面板 → **Orchestration → Startup Scripts → Add Startup Script**，类型选 *Boot*。
+2. 粘贴以下脚本，填入您的管理员账号和（可选的）域名：
+   ```bash
+   #!/bin/bash
+   export SG_EMAIL='admin@company.com' SG_PASSWORD='您的密码'
+   curl -fsSL https://raw.githubusercontent.com/zheng-collab/custom-ssr/claude/windows-vpn-app-mPjrB/scripts/server-setup.sh \
+     -o /root/server-setup.sh && bash /root/server-setup.sh > /root/server-setup.log 2>&1
+   ```
+3. 部署新实例（Ubuntu 22.04 或 24.04）时，在 *Additional Features* 中选择该 Startup Script。
+4. 实例启动约两分钟后，打开 SecureGateway 点击**同步**，服务器即会出现。若未出现，请查看实例上的 `/root/server-setup.log`。
+
+Startup Script 会将管理员密码保存在 Vultr 中；请使用一个仅拥有 `gateway.admin` 权限的专用管理账号，而非您的个人账号。
 
 **手动方式**（脚本所执行的步骤）：
 
