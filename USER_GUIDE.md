@@ -331,6 +331,16 @@ When minimized, SecureGateway sits in the Windows system tray (notification area
 
 **Quick way (one command):** on a fresh Ubuntu/Debian VPS, upload `scripts/server-setup.sh` and run it as root. It installs V2Ray, generates the UUID, configures VMess over WebSocket, optionally obtains a Let's Encrypt TLS certificate if you pass a domain, and prints a `vmess://` link. Copy that link, then in the app click **Servers → Import from Clipboard**. To make it available to every user, select it and click **Share**.
 
+**From Windows, easiest:** one PowerShell command from the repo folder does the upload and run in a single SSH session (asks for the VPS root password once):
+
+```powershell
+.\scripts\deploy-server.ps1 -ServerIp YOUR_SERVER_IP                                   # no TLS
+.\scripts\deploy-server.ps1 -ServerIp YOUR_SERVER_IP -Domain vpn.example.com           # with TLS
+.\scripts\deploy-server.ps1 -ServerIp YOUR_SERVER_IP -AdminEmail admin@company.com     # + auto-register in Supabase
+```
+
+**Or by hand:**
+
 ```bash
 # On your PC — copy the script to the server (use the IP from your VPS dashboard)
 scp scripts/server-setup.sh root@YOUR_SERVER_IP:/root/
@@ -824,6 +834,16 @@ SecureGateway 支持从标准分享链接格式导入服务器：
 ### V2Ray 服务器（推荐）
 
 **快速方式（一条命令）：** 在全新的 Ubuntu/Debian VPS 上，将 `scripts/server-setup.sh` 上传到服务器并以 root 身份运行。脚本会安装 V2Ray、生成 UUID、配置 VMess over WebSocket，若传入域名还会自动申请 Let's Encrypt TLS 证书，最后输出一个 `vmess://` 链接。复制该链接，在应用中点击 **服务器 → 从剪贴板导入**。若要让所有用户都能使用，选中该服务器后点击 **共享**。
+
+**在 Windows 上最简单的方式：** 在仓库目录下运行一条 PowerShell 命令，通过一次 SSH 会话完成上传和执行（只需输入一次 VPS root 密码）：
+
+```powershell
+.\scripts\deploy-server.ps1 -ServerIp 服务器IP                                   # 不启用 TLS
+.\scripts\deploy-server.ps1 -ServerIp 服务器IP -Domain vpn.example.com           # 启用 TLS
+.\scripts\deploy-server.ps1 -ServerIp 服务器IP -AdminEmail admin@company.com     # 并自动注册到 Supabase
+```
+
+**或手动操作：**
 
 ```bash
 # 在您的电脑上——将脚本复制到服务器（IP 见 VPS 控制面板）

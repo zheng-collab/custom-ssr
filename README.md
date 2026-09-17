@@ -168,6 +168,7 @@ custom-ssr/
 ├── SecureGateway.sln
 ├── scripts/
 │   ├── build.ps1              # Build script
+│   ├── deploy-server.ps1      # Run server-setup.sh on a VPS from Windows (one SSH session)
 │   ├── server-setup.sh        # One-command V2Ray server install for the VPS
 │   └── setup-v2ray.ps1        # Updates the bundled v2ray-core (optional)
 └── src/SecureGateway/
