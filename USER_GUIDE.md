@@ -329,6 +329,20 @@ When minimized, SecureGateway sits in the Windows system tray (notification area
 
 ### V2Ray Server (Recommended)
 
+**Quick way (one command):** on a fresh Ubuntu/Debian VPS, upload `scripts/server-setup.sh` and run it as root. It installs V2Ray, generates the UUID, configures VMess over WebSocket, optionally obtains a Let's Encrypt TLS certificate if you pass a domain, and prints a `vmess://` link. Copy that link, then in the app click **Servers → Import from Clipboard**. To make it available to every user, select it and click **Share**.
+
+```bash
+# On your PC — copy the script to the server (use the IP from your VPS dashboard)
+scp scripts/server-setup.sh root@YOUR_SERVER_IP:/root/
+
+# On the server
+ssh root@YOUR_SERVER_IP
+bash server-setup.sh                   # no TLS
+bash server-setup.sh vpn.example.com   # with TLS (recommended; point the DNS A record first)
+```
+
+**Manual way** (what the script does, step by step):
+
 1. **Provision a VPS** — Any Linux VPS works (Ubuntu 22.04 recommended). Providers: Vultr, DigitalOcean, Linode, etc.
 
 2. **Install V2Ray on the server:**
@@ -785,6 +799,20 @@ SecureGateway 支持从标准分享链接格式导入服务器：
 ## 14. 配置 VPS 服务器
 
 ### V2Ray 服务器（推荐）
+
+**快速方式（一条命令）：** 在全新的 Ubuntu/Debian VPS 上，将 `scripts/server-setup.sh` 上传到服务器并以 root 身份运行。脚本会安装 V2Ray、生成 UUID、配置 VMess over WebSocket，若传入域名还会自动申请 Let's Encrypt TLS 证书，最后输出一个 `vmess://` 链接。复制该链接，在应用中点击 **服务器 → 从剪贴板导入**。若要让所有用户都能使用，选中该服务器后点击 **共享**。
+
+```bash
+# 在您的电脑上——将脚本复制到服务器（IP 见 VPS 控制面板）
+scp scripts/server-setup.sh root@服务器IP:/root/
+
+# 在服务器上
+ssh root@服务器IP
+bash server-setup.sh                   # 不启用 TLS
+bash server-setup.sh vpn.example.com   # 启用 TLS（推荐；请先将域名 A 记录指向服务器）
+```
+
+**手动方式**（脚本所执行的步骤）：
 
 1. **购买 VPS** — 任何 Linux VPS 均可（推荐 Ubuntu 22.04）。供应商：Vultr、DigitalOcean、Linode 等。
 
