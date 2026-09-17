@@ -39,40 +39,45 @@ CREATE TABLE IF NOT EXISTS public.shared_servers (
 -- 2. Enable Row Level Security
 ALTER TABLE public.shared_servers ENABLE ROW LEVEL SECURITY;
 
--- 3. Policy: All authenticated users with gateway.access can READ shared servers
+-- 3. Permission check helper.
+--    profiles.permissions may be text[] or jsonb depending on how the table was
+--    created; to_jsonb() normalises both to a JSON array so the same check works.
+--    SECURITY DEFINER lets the policy read profiles even when profiles has its own RLS.
+CREATE OR REPLACE FUNCTION public.has_gateway_permission(perm text)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = auth.uid()
+          AND to_jsonb(profiles.permissions) ? perm
+    );
+$$;
+
+REVOKE ALL ON FUNCTION public.has_gateway_permission(text) FROM public;
+GRANT EXECUTE ON FUNCTION public.has_gateway_permission(text) TO authenticated;
+
+-- 4. Policy: All authenticated users with gateway.access can READ shared servers
+DROP POLICY IF EXISTS "Users with gateway.access can read shared servers" ON public.shared_servers;
 CREATE POLICY "Users with gateway.access can read shared servers"
     ON public.shared_servers
     FOR SELECT
     TO authenticated
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles
-            WHERE profiles.id = auth.uid()
-            AND profiles.permissions @> '["gateway.access"]'::jsonb
-        )
-    );
+    USING (public.has_gateway_permission('gateway.access'));
 
--- 4. Policy: Only users with gateway.admin permission can INSERT/UPDATE/DELETE
+-- 5. Policy: Only users with gateway.admin permission can INSERT/UPDATE/DELETE
+DROP POLICY IF EXISTS "Admins can manage shared servers" ON public.shared_servers;
 CREATE POLICY "Admins can manage shared servers"
     ON public.shared_servers
     FOR ALL
     TO authenticated
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles
-            WHERE profiles.id = auth.uid()
-            AND profiles.permissions @> '["gateway.admin"]'::jsonb
-        )
-    )
-    WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM public.profiles
-            WHERE profiles.id = auth.uid()
-            AND profiles.permissions @> '["gateway.admin"]'::jsonb
-        )
-    );
+    USING (public.has_gateway_permission('gateway.admin'))
+    WITH CHECK (public.has_gateway_permission('gateway.admin'));
 
--- 5. Create index for fast lookup of enabled servers
+-- 6. Create index for fast lookup of enabled servers
 CREATE INDEX IF NOT EXISTS idx_shared_servers_enabled
     ON public.shared_servers (enabled)
     WHERE enabled = true;
@@ -80,10 +85,22 @@ CREATE INDEX IF NOT EXISTS idx_shared_servers_enabled
 -- =============================================================================
 -- USAGE NOTES:
 --
--- To grant a user admin access (can publish/unpublish shared servers):
+-- To grant a user admin access (can publish/unpublish shared servers), run the
+-- statement matching your profiles.permissions column type:
+--
+--   -- permissions is text[]  (the common case):
+--   UPDATE profiles
+--   SET permissions = array_append(permissions, 'gateway.admin')
+--   WHERE email = 'admin@company.com'
+--     AND NOT ('gateway.admin' = ANY(permissions));
+--
+--   -- permissions is jsonb:
 --   UPDATE profiles
 --   SET permissions = permissions || '["gateway.admin"]'::jsonb
---   WHERE id = '<user-uuid>';
+--   WHERE email = 'admin@company.com';
+--
+-- To check what a user has:
+--   SELECT email, permissions FROM profiles WHERE email = 'admin@company.com';
 --
 -- To add a shared server manually via SQL:
 --   INSERT INTO shared_servers (name, address, port, protocol, v2ray_user_id, v2ray_transport, v2ray_tls)
