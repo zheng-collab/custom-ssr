@@ -1,5 +1,5 @@
 using System;
-using System.Reflection;
+using System.IO;
 using Microsoft.Win32;
 
 namespace SecureGateway.Utils
@@ -31,8 +31,10 @@ namespace SecureGateway.Utils
 
                 if (enable)
                 {
+                    // Assembly.Location is empty in a single-file publish; ProcessPath is reliable there.
                     var exePath = Environment.ProcessPath
-                        ?? Assembly.GetExecutingAssembly().Location;
+                        ?? Path.Combine(AppContext.BaseDirectory, "SecureGateway.exe");
+                    if (!File.Exists(exePath)) return;
                     key.SetValue(AppName, $"\"{exePath}\" --minimized");
                 }
                 else
