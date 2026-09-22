@@ -40,7 +40,8 @@ esac
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROJ="$ROOT/src/SecureGateway.Mac/SecureGateway.Mac.csproj"
-VERSION=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' "$PROJ" | head -1); VERSION="${VERSION:-1.0.0}"
+# Product version lives in Directory.Build.props (one place for all projects and scripts).
+VERSION=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' "$ROOT/Directory.Build.props" | head -1); VERSION="${VERSION:-1.0.0}"
 BUILD="$ROOT/build/mac"
 PUBLISH="$BUILD/publish-$RID"
 APP="$BUILD/SecureGateway.app"

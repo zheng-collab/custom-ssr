@@ -10,7 +10,6 @@
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <AssemblyName>SecureGateway</AssemblyName>
     <RootNamespace>SecureGateway</RootNamespace>
-    <Version>1.0.0</Version>
     <Description>Enterprise VPN/Proxy Client with V2Ray and Shadowsocks support</Description>
     <Company>SecureGateway</Company>
     <Product>SecureGateway VPN Client</Product>

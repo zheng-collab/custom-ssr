@@ -11,7 +11,6 @@
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
-    <Version>1.0.0</Version>
     <Company>Fourth Zodiac</Company>
     <Product>SecureGateway VPN Client</Product>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>

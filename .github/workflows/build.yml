@@ -90,13 +90,20 @@ jobs:
           path: dist
       - name: List files
         run: find dist -type f | sort
-      - name: Create release and attach installers
+      - name: Create release (or add files to an existing one) and attach installers
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${GITHUB_REF_NAME}"
-          gh release create "$TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "SecureGateway $TAG" \
-            --generate-notes \
-            dist/windows/* dist/macos-arm64/* dist/macos-x64/*
+          # The release may already exist when the tag was created from GitHub's
+          # "Draft a new release" page; then just attach the files to it.
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber \
+              dist/windows/* dist/macos-arm64/* dist/macos-x64/*
+          else
+            gh release create "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "SecureGateway $TAG" \
+              --generate-notes \
+              dist/windows/* dist/macos-arm64/* dist/macos-x64/*
+          fi

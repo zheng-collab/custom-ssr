@@ -31,7 +31,8 @@ $ProjectDir = Join-Path $SolutionDir "src\SecureGateway"
 $OutputDir = Join-Path $SolutionDir "build"
 if ($Zip -or $Installer) { $Publish = $true }
 
-$Version = ([xml](Get-Content "$ProjectDir\SecureGateway.csproj")).Project.PropertyGroup.Version |
+# Product version lives in Directory.Build.props (one place for all projects and scripts).
+$Version = ([xml](Get-Content "$SolutionDir\Directory.Build.props")).Project.PropertyGroup.Version |
            Where-Object { $_ } | Select-Object -First 1
 if (-not $Version) { $Version = "1.0.0" }
 
