@@ -14,8 +14,7 @@ namespace SecureGateway.UI.Views
         private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(5);
 
         private static readonly string LockoutFile = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "SecureGateway", "lockout.json");
+            SecureGateway.Platform.AppPaths.DataDir, "lockout.json");
 
         private readonly AuthService _authService;
         private bool _isSignUpMode;

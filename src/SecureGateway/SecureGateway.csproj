@@ -1,9 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- Windows (WPF) app. All non-UI logic lives in SecureGateway.Core, shared with the macOS app. -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
+    <!-- System.Windows.Forms.NotifyIcon powers the tray icon -->
+    <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <AssemblyName>SecureGateway</AssemblyName>
     <RootNamespace>SecureGateway</RootNamespace>
@@ -18,11 +21,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\SecureGateway.Core\SecureGateway.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="1.1.0" />
-    <PackageReference Include="Microsoft.Toolkit.Mvvm" Version="7.1.2" />
-    <PackageReference Include="NLog" Version="5.2.8" />
-    <PackageReference Include="Supabase" Version="1.1.1" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
   </ItemGroup>
 

@@ -1,18 +1,16 @@
 using System;
+using System.Threading.Tasks;
 using System.Windows.Input;
 
 namespace SecureGateway.UI.ViewModels
 {
+    /// <summary>Portable ICommand (no WPF CommandManager); call RaiseCanExecuteChanged when state changes.</summary>
     public class RelayCommand : ICommand
     {
         private readonly Action<object> _execute;
         private readonly Predicate<object> _canExecute;
 
-        public event EventHandler CanExecuteChanged
-        {
-            add => CommandManager.RequerySuggested += value;
-            remove => CommandManager.RequerySuggested -= value;
-        }
+        public event EventHandler CanExecuteChanged;
 
         public RelayCommand(Action<object> execute, Predicate<object> canExecute = null)
         {
@@ -27,28 +25,23 @@ namespace SecureGateway.UI.ViewModels
 
         public bool CanExecute(object parameter) => _canExecute?.Invoke(parameter) ?? true;
         public void Execute(object parameter) => _execute(parameter);
-
-        public void RaiseCanExecuteChanged() => CommandManager.InvalidateRequerySuggested();
+        public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public class AsyncRelayCommand : ICommand
     {
-        private readonly Func<object, System.Threading.Tasks.Task> _execute;
+        private readonly Func<object, Task> _execute;
         private readonly Predicate<object> _canExecute;
         private bool _isExecuting;
 
-        public event EventHandler CanExecuteChanged
-        {
-            add => CommandManager.RequerySuggested += value;
-            remove => CommandManager.RequerySuggested -= value;
-        }
+        public event EventHandler CanExecuteChanged;
 
-        public AsyncRelayCommand(Func<System.Threading.Tasks.Task> execute, Func<bool> canExecute = null)
+        public AsyncRelayCommand(Func<Task> execute, Func<bool> canExecute = null)
             : this(_ => execute(), canExecute != null ? _ => canExecute() : null)
         {
         }
 
-        public AsyncRelayCommand(Func<object, System.Threading.Tasks.Task> execute, Predicate<object> canExecute = null)
+        public AsyncRelayCommand(Func<object, Task> execute, Predicate<object> canExecute = null)
         {
             _execute = execute ?? throw new ArgumentNullException(nameof(execute));
             _canExecute = canExecute;
@@ -58,10 +51,9 @@ namespace SecureGateway.UI.ViewModels
 
         public async void Execute(object parameter)
         {
-            if (_isExecuting) return;
+            if (!CanExecute(parameter)) return;
             _isExecuting = true;
-            CommandManager.InvalidateRequerySuggested();
-
+            RaiseCanExecuteChanged();
             try
             {
                 await _execute(parameter);
@@ -69,8 +61,10 @@ namespace SecureGateway.UI.ViewModels
             finally
             {
                 _isExecuting = false;
-                CommandManager.InvalidateRequerySuggested();
+                RaiseCanExecuteChanged();
             }
         }
+
+        public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
     }
 }

@@ -48,26 +48,4 @@ namespace SecureGateway.Utils
             }
         }
     }
-
-    public static class ClipboardHelper
-    {
-        public static string ParseShareLink(string link)
-        {
-            if (string.IsNullOrWhiteSpace(link))
-                return null;
-
-            link = link.Trim();
-
-            if (link.StartsWith("vmess://", StringComparison.OrdinalIgnoreCase))
-                return "v2ray";
-
-            if (link.StartsWith("ss://", StringComparison.OrdinalIgnoreCase))
-                return "shadowsocks";
-
-            if (link.StartsWith("vless://", StringComparison.OrdinalIgnoreCase))
-                return "v2ray";
-
-            return null;
-        }
-    }
 }

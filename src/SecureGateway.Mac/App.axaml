@@ -1,0 +1,176 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="SecureGateway.Mac.App"
+             RequestedThemeVariant="Dark">
+
+  <Application.Resources>
+    <SolidColorBrush x:Key="Base">#1E1E2E</SolidColorBrush>
+    <SolidColorBrush x:Key="Mantle">#181825</SolidColorBrush>
+    <SolidColorBrush x:Key="Surface0">#313244</SolidColorBrush>
+    <SolidColorBrush x:Key="Surface1">#45475A</SolidColorBrush>
+    <SolidColorBrush x:Key="Surface2">#585B70</SolidColorBrush>
+    <SolidColorBrush x:Key="Text">#CDD6F4</SolidColorBrush>
+    <SolidColorBrush x:Key="Subtext">#A6ADC8</SolidColorBrush>
+    <SolidColorBrush x:Key="Overlay">#6C7086</SolidColorBrush>
+    <SolidColorBrush x:Key="Blue">#89B4FA</SolidColorBrush>
+    <SolidColorBrush x:Key="BlueHover">#74A8F7</SolidColorBrush>
+    <SolidColorBrush x:Key="Green">#A6E3A1</SolidColorBrush>
+    <SolidColorBrush x:Key="Red">#F38BA8</SolidColorBrush>
+    <SolidColorBrush x:Key="Yellow">#F9E2AF</SolidColorBrush>
+    <SolidColorBrush x:Key="Peach">#FAB387</SolidColorBrush>
+    <SolidColorBrush x:Key="Mauve">#CBA6F7</SolidColorBrush>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme />
+
+    <Style Selector="Window">
+      <Setter Property="Background" Value="{StaticResource Base}"/>
+      <Setter Property="Foreground" Value="{StaticResource Text}"/>
+      <Setter Property="FontSize" Value="13"/>
+    </Style>
+
+    <!-- Buttons -->
+    <Style Selector="Button">
+      <Setter Property="Background" Value="{StaticResource Surface0}"/>
+      <Setter Property="Foreground" Value="{StaticResource Text}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource Surface1}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="Padding" Value="14,7"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource Surface1}"/>
+      <Setter Property="Foreground" Value="{StaticResource Text}"/>
+    </Style>
+    <Style Selector="Button:disabled">
+      <Setter Property="Opacity" Value="0.5"/>
+    </Style>
+
+    <Style Selector="Button.accent">
+      <Setter Property="Background" Value="{StaticResource Blue}"/>
+      <Setter Property="Foreground" Value="{StaticResource Base}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource Blue}"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <Style Selector="Button.accent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource BlueHover}"/>
+      <Setter Property="Foreground" Value="{StaticResource Base}"/>
+    </Style>
+
+    <Style Selector="Button.danger">
+      <Setter Property="Background" Value="{StaticResource Red}"/>
+      <Setter Property="Foreground" Value="{StaticResource Base}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource Red}"/>
+    </Style>
+    <Style Selector="Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#E67E9A"/>
+      <Setter Property="Foreground" Value="{StaticResource Base}"/>
+    </Style>
+
+    <Style Selector="Button.connect">
+      <Setter Property="FontSize" Value="15"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Padding" Value="28,12"/>
+      <Setter Property="Foreground" Value="{StaticResource Base}"/>
+    </Style>
+
+    <Style Selector="Button.link">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Foreground" Value="{StaticResource Blue}"/>
+      <Setter Property="Padding" Value="2"/>
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style Selector="Button.link:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{StaticResource BlueHover}"/>
+    </Style>
+
+    <!-- Inputs -->
+    <Style Selector="TextBox">
+      <Setter Property="Background" Value="{StaticResource Mantle}"/>
+      <Setter Property="Foreground" Value="{StaticResource Text}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource Surface1}"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="Padding" Value="10,8"/>
+      <Setter Property="FontSize" Value="13"/>
+    </Style>
+    <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+      <Setter Property="BorderBrush" Value="{StaticResource Blue}"/>
+    </Style>
+    <Style Selector="ComboBox">
+      <Setter Property="Background" Value="{StaticResource Mantle}"/>
+      <Setter Property="Foreground" Value="{StaticResource Text}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource Surface1}"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    </Style>
+    <Style Selector="CheckBox">
+      <Setter Property="Foreground" Value="{StaticResource Text}"/>
+    </Style>
+    <Style Selector="RadioButton">
+      <Setter Property="Foreground" Value="{StaticResource Text}"/>
+    </Style>
+
+    <!-- Tabs -->
+    <Style Selector="TabItem">
+      <Setter Property="Foreground" Value="{StaticResource Subtext}"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="FontWeight" Value="Normal"/>
+      <Setter Property="Padding" Value="16,8"/>
+      <Setter Property="MinHeight" Value="36"/>
+    </Style>
+    <Style Selector="TabItem:selected">
+      <Setter Property="Foreground" Value="{StaticResource Blue}"/>
+    </Style>
+
+    <!-- Cards -->
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="{StaticResource Surface0}"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Padding" Value="16"/>
+    </Style>
+    <Style Selector="TextBlock.label">
+      <Setter Property="Foreground" Value="{StaticResource Subtext}"/>
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style Selector="TextBlock.value">
+      <Setter Property="FontSize" Value="20"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Margin" Value="0,4,0,0"/>
+    </Style>
+    <Style Selector="TextBlock.h2">
+      <Setter Property="FontSize" Value="16"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Foreground" Value="{StaticResource Blue}"/>
+    </Style>
+    <Style Selector="TextBlock.field">
+      <Setter Property="Foreground" Value="{StaticResource Text}"/>
+      <Setter Property="Margin" Value="0,10,0,4"/>
+    </Style>
+
+    <!-- Server list -->
+    <Style Selector="ListBox">
+      <Setter Property="Background" Value="{StaticResource Mantle}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource Surface0}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="6"/>
+    </Style>
+    <Style Selector="ListBoxItem">
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Margin" Value="2"/>
+      <Setter Property="CornerRadius" Value="6"/>
+    </Style>
+    <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+      <Setter Property="Background" Value="#2A2A4A"/>
+    </Style>
+    <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#232338"/>
+    </Style>
+  </Application.Styles>
+</Application>

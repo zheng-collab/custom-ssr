@@ -2,10 +2,11 @@ using System;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using SecureGateway.Models;
+using SecureGateway.Platform;
 
 namespace SecureGateway.Services
 {
-    public class SystemProxyService
+    public class SystemProxyService : ISystemProxyService
     {
         private const string RegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Internet Settings";
 
@@ -67,18 +68,15 @@ namespace SecureGateway.Services
             RefreshSystemProxy();
         }
 
-        public void ConfigureForMode(ProxyMode mode, int httpPort, string pacUrl = null)
+        public void ConfigureForMode(ProxyMode mode, int httpPort, int socksPort)
         {
             switch (mode)
             {
                 case ProxyMode.Global:
-                    EnableGlobalProxy(httpPort);
-                    break;
                 case ProxyMode.Rule:
-                    if (!string.IsNullOrEmpty(pacUrl))
-                        EnablePacProxy(pacUrl);
-                    else
-                        EnableGlobalProxy(httpPort);
+                    // Rule-based routing (private ranges direct) is done inside v2ray; the
+                    // system proxy points at it in both modes.
+                    EnableGlobalProxy(httpPort);
                     break;
                 case ProxyMode.Direct:
                     DisableProxy();

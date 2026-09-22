@@ -1,0 +1,101 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="SecureGateway.Mac.Views.ServerEditWindow"
+        Title="Server Configuration" Width="520" Height="620"
+        CanResize="False" WindowStartupLocation="CenterOwner">
+
+  <Grid RowDefinitions="*,Auto" Margin="20">
+    <ScrollViewer>
+      <StackPanel Margin="0,0,8,0">
+        <TextBlock Text="General" Classes="h2"/>
+
+        <TextBlock Text="Server Name" Classes="field"/>
+        <TextBox Text="{Binding Name}"/>
+
+        <TextBlock Text="Address (IP or domain)" Classes="field"/>
+        <TextBox Text="{Binding Address}"/>
+
+        <Grid ColumnDefinitions="*,16,*">
+          <StackPanel Grid.Column="0">
+            <TextBlock Text="Port" Classes="field"/>
+            <TextBox Text="{Binding Port}"/>
+          </StackPanel>
+          <StackPanel Grid.Column="2">
+            <TextBlock Text="Protocol" Classes="field"/>
+            <ComboBox Name="CmbProtocol" SelectedItem="{Binding Protocol}" SelectionChanged="OnProtocolChanged"/>
+          </StackPanel>
+        </Grid>
+
+        <!-- V2Ray -->
+        <StackPanel Name="V2RayPanel" Margin="0,14,0,0">
+          <TextBlock Text="V2Ray Settings" Classes="h2"/>
+
+          <TextBlock Text="User ID (UUID)" Classes="field"/>
+          <TextBox Text="{Binding V2RayUserId}"/>
+
+          <Grid ColumnDefinitions="*,16,*">
+            <StackPanel Grid.Column="0">
+              <TextBlock Text="Alter ID" Classes="field"/>
+              <TextBox Text="{Binding V2RayAlterId}"/>
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+              <TextBlock Text="Security" Classes="field"/>
+              <ComboBox Name="CmbSecurity" SelectedItem="{Binding V2RaySecurity}"/>
+            </StackPanel>
+          </Grid>
+
+          <TextBlock Text="Transport" Classes="field"/>
+          <ComboBox Name="CmbTransport" SelectedItem="{Binding V2RayTransport}"/>
+
+          <TextBlock Text="Path" Classes="field"/>
+          <TextBox Text="{Binding V2RayPath}"/>
+
+          <TextBlock Text="Host" Classes="field"/>
+          <TextBox Text="{Binding V2RayHost}"/>
+
+          <CheckBox Content="Enable TLS" IsChecked="{Binding V2RayTls}" Margin="0,10,0,0"/>
+
+          <TextBlock Text="SNI (Server Name Indication)" Classes="field"/>
+          <TextBox Text="{Binding V2RaySni}"/>
+        </StackPanel>
+
+        <!-- Shadowsocks -->
+        <StackPanel Name="ShadowsocksPanel" Margin="0,14,0,0" IsVisible="False">
+          <TextBlock Text="Shadowsocks Settings" Classes="h2"/>
+
+          <TextBlock Text="Password" Classes="field"/>
+          <TextBox Text="{Binding SsPassword}"/>
+
+          <TextBlock Text="Encryption" Classes="field"/>
+          <ComboBox Name="CmbEncryption" SelectedItem="{Binding SsEncryption}"/>
+
+          <TextBlock Text="Plugin (optional, not supported by the bundled engine)" Classes="field"/>
+          <TextBox Text="{Binding SsPlugin}"/>
+
+          <TextBlock Text="Plugin Options" Classes="field"/>
+          <TextBox Text="{Binding SsPluginOptions}"/>
+        </StackPanel>
+
+        <TextBlock Text="Local Ports" Classes="h2" Margin="0,14,0,0"/>
+        <Grid ColumnDefinitions="*,16,*">
+          <StackPanel Grid.Column="0">
+            <TextBlock Text="SOCKS5 Port" Classes="field"/>
+            <TextBox Text="{Binding LocalSocksPort}"/>
+          </StackPanel>
+          <StackPanel Grid.Column="2">
+            <TextBlock Text="HTTP Port" Classes="field"/>
+            <TextBox Text="{Binding LocalHttpPort}"/>
+          </StackPanel>
+        </Grid>
+
+        <TextBlock Text="Remarks" Classes="field"/>
+        <TextBox Text="{Binding Remarks}" AcceptsReturn="True" Height="56" TextWrapping="Wrap"/>
+      </StackPanel>
+    </ScrollViewer>
+
+    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,16,0,0">
+      <Button Content="Cancel" Width="100" Click="OnCancel"/>
+      <Button Content="Save" Width="100" Classes="accent" Click="OnSave"/>
+    </StackPanel>
+  </Grid>
+</Window>

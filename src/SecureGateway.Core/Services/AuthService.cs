@@ -3,11 +3,11 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using SecureGateway.Platform;
 using Supabase;
 using Supabase.Gotrue;
 using Supabase.Gotrue.Exceptions;
@@ -16,17 +16,20 @@ namespace SecureGateway.Services
 {
     public class AuthService
     {
+        private readonly ICredentialStore _credentials;
+
+        public AuthService(ICredentialStore credentialStore)
+        {
+            _credentials = credentialStore ?? throw new ArgumentNullException(nameof(credentialStore));
+        }
+
         private const string SupabaseUrl = "https://yahzzatmmmdmwalindai.supabase.co";
         private const string SupabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlhaHp6YXRtbW1kbXdhbGluZGFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODA1NzMsImV4cCI6MjA4NzM1NjU3M30._OKdLLUDN80GR7nMHYsI3S0WmzPmGw-7QmpZYEIREj4";
         private const string RequiredPermission = "gateway.access";
         private const int SessionMaxDays = 120;
 
-        private static readonly string AppDataDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "SecureGateway");
-
+        private static readonly string AppDataDir = AppPaths.DataDir;
         private static readonly string TokenFile = Path.Combine(AppDataDir, "auth_session.json");
-        private static readonly string CredentialsFile = Path.Combine(AppDataDir, "saved_credentials.dat");
 
         private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(20) };
 
@@ -231,11 +234,9 @@ namespace SecureGateway.Services
         {
             try
             {
-                if (!File.Exists(CredentialsFile)) return null;
-
-                var decrypted = ProtectedData.Unprotect(
-                    File.ReadAllBytes(CredentialsFile), null, DataProtectionScope.CurrentUser);
-                return JsonConvert.DeserializeObject<SavedCredentials>(Encoding.UTF8.GetString(decrypted));
+                var stored = _credentials.Load();
+                if (stored == null || string.IsNullOrEmpty(stored.Value.email)) return null;
+                return new SavedCredentials { Email = stored.Value.email, Password = stored.Value.password ?? "" };
             }
             catch
             {
@@ -435,20 +436,12 @@ namespace SecureGateway.Services
 
         private void SaveCredentials(string email, string password)
         {
-            try
-            {
-                Directory.CreateDirectory(AppDataDir);
-                var json = JsonConvert.SerializeObject(new SavedCredentials { Email = email, Password = password });
-                var encrypted = ProtectedData.Protect(
-                    Encoding.UTF8.GetBytes(json), null, DataProtectionScope.CurrentUser);
-                File.WriteAllBytes(CredentialsFile, encrypted);
-            }
-            catch { }
+            try { _credentials.Save(email, password); } catch { }
         }
 
-        private static void ClearCredentials()
+        private void ClearCredentials()
         {
-            try { if (File.Exists(CredentialsFile)) File.Delete(CredentialsFile); } catch { }
+            try { _credentials.Clear(); } catch { }
         }
 
         private static void ClearSavedSession()

@@ -1,7 +1,7 @@
 <Window x:Class="SecureGateway.UI.Views.ServerEditWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:models="clr-namespace:SecureGateway.Models"
+        xmlns:models="clr-namespace:SecureGateway.Models;assembly=SecureGateway.Core"
         Title="Server Configuration" Height="580" Width="520"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
         Background="#1E1E2E">

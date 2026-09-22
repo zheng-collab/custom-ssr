@@ -161,6 +161,30 @@ Or run the published executable from `build/publish/SecureGateway.exe`.
 
 Copy a `vmess://` or `ss://` share link to your clipboard, then click **Import from Clipboard** in the Servers tab.
 
+## macOS
+
+The macOS app shares all logic with the Windows app (`src/SecureGateway.Core`) and has its own UI in `src/SecureGateway.Mac` (Avalonia). It uses `networksetup` for the system proxy, the login Keychain for "Remember me", and a LaunchAgent for start-at-login. The engine is the same v2ray-core.
+
+**Build on a Mac** (needs the .NET 8 SDK and Xcode command line tools):
+
+```bash
+git clone <repo-url> && cd custom-ssr
+./scripts/build-mac.sh                # Apple Silicon on an M-series Mac, Intel on an Intel Mac
+./scripts/build-mac.sh --arch x64     # force an Intel build
+```
+
+Output: `build/mac/SecureGateway.app` and `build/SecureGateway-<version>-macos-<arch>.dmg`. The script downloads v2ray-core for macOS (same release as the Windows bundle), assembles the bundle with icon and `Info.plist`, ad-hoc signs it and packs the DMG.
+
+**Install:** open the DMG, drag SecureGateway to Applications. First launch on a Mac other than the build machine: Gatekeeper says the developer cannot be verified because the app is not notarized. Right-click the app → **Open** → **Open** (once), or run `xattr -d com.apple.quarantine /Applications/SecureGateway.app`. When connecting for the first time, macOS asks for the administrator password once so the app may change the system proxy.
+
+**Distributing to staff without the Gatekeeper prompt** requires an Apple Developer ID certificate (US$99/year): `./scripts/build-mac.sh --sign "Developer ID Application: Your Company (TEAMID)"`, then notarize with the `notarytool` command the script prints.
+
+**Headless UI test** (runs anywhere, no Mac needed; renders every window and saves screenshots):
+
+```bash
+dotnet run --project tests/SecureGateway.Mac.Smoke -c Release -- /tmp/sg-smoke
+```
+
 ## Distributing to Users
 
 Build the packages (both imply `-Publish`):
@@ -192,19 +216,17 @@ custom-ssr/
 │   ├── server-setup.sh        # One-command V2Ray server install for the VPS
 │   ├── shadowsocks-setup.sh   # One-command Shadowsocks (AEAD) server install (Debian/Ubuntu)
 │   └── setup-v2ray.ps1        # Updates the bundled v2ray-core (optional)
-└── src/SecureGateway/
-    ├── Core/
-    │   ├── Config/             # Configuration management
-    │   ├── Engines/            # v2ray-core wrapper (VMess + Shadowsocks outbounds)
-    │   ├── Logging/            # Application logging
-    │   └── Routing/            # PAC/routing rule management
-    ├── Models/                 # Data models
-    ├── Services/               # Connection service, system proxy
+├── src/SecureGateway.Core/     # Shared logic (both platforms): models, config, v2ray engine,
+│                               #   auth/Supabase, connection service, view-model base
+├── src/SecureGateway.Mac/      # macOS app (Avalonia UI + networksetup/Keychain/LaunchAgent)
+├── tests/SecureGateway.Mac.Smoke/  # Headless render test for the macOS UI
+└── src/SecureGateway/          # Windows app (WPF UI + registry proxy, DPAPI, Run key)
+    ├── Services/               # Windows system proxy (registry/WinINET), DPAPI credential store
     ├── UI/
     │   ├── Converters/         # WPF value converters
     │   ├── ViewModels/         # MVVM view models
     │   └── Views/              # WPF windows and controls
-    └── Utils/                  # Auto-start, clipboard helpers
+    └── Utils/                  # Windows auto-start (Run key)
 ```
 
 ## Configuration

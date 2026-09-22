@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- macOS app (Avalonia UI). Also runs on Linux for development. Shares SecureGateway.Core
+       with the Windows app; only UI + macOS integration (networksetup, Keychain, LaunchAgent) live here.
+       Build a .app/.dmg with scripts/build-mac.sh on a Mac. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>SecureGateway</AssemblyName>
+    <RootNamespace>SecureGateway.Mac</RootNamespace>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <Version>1.0.0</Version>
+    <Company>Fourth Zodiac</Company>
+    <Product>SecureGateway VPN Client</Product>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- AVLN3001: windows take constructor args and are populated via AvaloniaXamlLoader.Load(this),
+         which the XAML compiler rewrites to a direct call; the runtime-loader warning does not apply. -->
+    <NoWarn>$(NoWarn);AVLN3001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SecureGateway.Core\SecureGateway.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.22" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <!-- v2ray-core for macOS is not checked in (Windows binary is); scripts/build-mac.sh downloads
+       the matching release and places it next to the executable inside the .app bundle. -->
+
+</Project>

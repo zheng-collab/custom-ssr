@@ -54,6 +54,15 @@ Upgrades: run the newer setup file over the existing install; your servers and s
 
 > **Administrator note:** to pass Smart App Control on every employee PC, sign the build with a certificate from a Microsoft-trusted authority (Azure Trusted Signing, or an OV code-signing certificate from DigiCert, Sectigo, etc. — self-signed certificates do not count). Then publish with `.\scripts\build.ps1 -Publish -SignCert C:\path\company.pfx`, which signs both `SecureGateway.exe` and `v2ray-core\v2ray.exe`.
 
+### Option A3: macOS
+
+1. Open `SecureGateway-<version>-macos-<arch>.dmg` (choose *arm64* for Apple Silicon Macs, *x64* for Intel Macs) and drag **SecureGateway** to **Applications**.
+2. First launch: macOS may say the app *"cannot be opened because the developer cannot be verified"*. Right-click the app in Applications → **Open** → **Open**. This is needed once. (Administrators: sign and notarize the build to avoid this; see the README.)
+3. Sign in exactly as on Windows. The first time you click **Connect**, macOS asks for your Mac's administrator password so the app can set the system proxy; this happens once per session.
+4. The app lives in the **menu bar** (top-right shield icon) when you close its window. Click the icon to reopen it, or use its menu to connect, disconnect, or quit.
+
+Everything else in this guide applies unchanged: same login, password reset, shared servers, proxy modes and log tab. "Start with Windows" is "Start at login" on macOS.
+
 ### Option B: Build from Source
 
 ```powershell
@@ -594,6 +603,15 @@ It installs the latest `shadowsocks-rust` server as a static binary from GitHub 
 - *"Smart App Control 已阻止此应用"*（Windows 11）：没有"仍要运行"选项。要么由管理员分发**已签名**的版本（见下方说明），要么在该电脑上关闭 Smart App Control：**设置 → 隐私和安全性 → Windows 安全中心 → 应用和浏览器控制 → Smart App Control 设置 → 关闭**。Windows 只允许关闭一次，之后无法重新开启，除非重装系统。
 
 > **管理员注意：** 要让应用在所有员工电脑上通过 Smart App Control，需使用微软信任的证书颁发机构签发的证书对程序进行签名（Azure Trusted Signing，或 DigiCert、Sectigo 等机构的 OV 代码签名证书——自签名证书无效）。然后使用 `.\scripts\build.ps1 -Publish -SignCert C:\path\company.pfx` 发布，该命令会同时签名 `SecureGateway.exe` 和 `v2ray-core\v2ray.exe`。
+
+### 方式 A3：macOS
+
+1. 打开 `SecureGateway-<版本号>-macos-<架构>.dmg`（Apple 芯片的 Mac 选择 *arm64*，Intel 芯片的 Mac 选择 *x64*），将 **SecureGateway** 拖入 **应用程序** 文件夹。
+2. 首次启动时，macOS 可能提示 *"无法打开，因为无法验证开发者"*。在"应用程序"中右键点击该应用 → **打开** → **打开**，只需操作一次。（管理员：对构建进行签名和公证即可避免此提示，详见 README。）
+3. 登录方式与 Windows 完全相同。首次点击 **Connect（连接）** 时，macOS 会要求输入本机管理员密码，以便应用设置系统代理；每次会话只需输入一次。
+4. 关闭窗口后，应用会驻留在**菜单栏**（右上角的盾牌图标）。点击图标可重新打开窗口，或通过其菜单连接、断开或退出。
+
+本手册的其他内容同样适用：登录、密码重置、共享服务器、代理模式和日志页均与 Windows 版一致。Windows 版的"Start with Windows"在 macOS 上对应"Start at login（登录时启动）"。
 
 ### 方式 B：从源码编译
 

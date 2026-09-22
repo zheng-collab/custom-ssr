@@ -13,9 +13,7 @@ namespace SecureGateway.Core.Routing
 
         public RoutingManager()
         {
-            _pacDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "SecureGateway", "pac");
+            _pacDir = Path.Combine(SecureGateway.Platform.AppPaths.DataDir, "pac");
             Directory.CreateDirectory(_pacDir);
         }
 

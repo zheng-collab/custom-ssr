@@ -32,11 +32,23 @@ namespace SecureGateway.Core.Engines
 
         public V2RayEngine()
         {
-            _v2rayPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "v2ray-core", "v2ray.exe");
-            _configDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "SecureGateway", "v2ray");
+            _v2rayPath = SecureGateway.Platform.AppPaths.V2RayExecutable;
+            _configDir = Path.Combine(SecureGateway.Platform.AppPaths.DataDir, "v2ray");
             Directory.CreateDirectory(_configDir);
+        }
+
+        /// <summary>On macOS/Linux the bundled binary may have lost its execute bit (zip extraction, quarantine).</summary>
+        private void EnsureExecutable()
+        {
+            if (OperatingSystem.IsWindows()) return;
+            try
+            {
+                var mode = File.GetUnixFileMode(_v2rayPath);
+                var exec = UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute;
+                if ((mode & exec) != exec)
+                    File.SetUnixFileMode(_v2rayPath, mode | exec);
+            }
+            catch { }
         }
 
         public async Task StartAsync(ServerProfile profile)
@@ -49,9 +61,10 @@ namespace SecureGateway.Core.Engines
             if (!File.Exists(_v2rayPath))
             {
                 SetStatus(EngineStatus.Error,
-                    "v2ray-core not found. Reinstall the app or place v2ray.exe in the v2ray-core folder.");
+                    $"v2ray-core not found at {_v2rayPath}. Reinstall the app or place the v2ray binary in the v2ray-core folder.");
                 return;
             }
+            EnsureExecutable();
 
             if (profile.Protocol == ProxyProtocol.Shadowsocks && !string.IsNullOrEmpty(profile.SsPlugin))
                 Log($"Shadowsocks plugin '{profile.SsPlugin}' is not supported and will be ignored.", "Warning");

@@ -2,14 +2,13 @@ using System;
 using System.IO;
 using Newtonsoft.Json;
 using SecureGateway.Models;
+using SecureGateway.Platform;
 
 namespace SecureGateway.Core.Config
 {
     public class ConfigManager
     {
-        private static readonly string ConfigDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "SecureGateway");
+        private static readonly string ConfigDir = AppPaths.DataDir;
 
         private static readonly string ConfigFile = Path.Combine(ConfigDir, "settings.json");
 

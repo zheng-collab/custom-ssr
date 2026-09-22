@@ -1,0 +1,81 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="SecureGateway.Mac.Views.LoginWindow"
+        Title="SecureGateway - Sign In" Width="400" Height="640"
+        CanResize="False" WindowStartupLocation="CenterScreen">
+
+  <ScrollViewer>
+    <StackPanel Margin="32,24,32,20">
+      <!-- Header -->
+      <Border Width="64" Height="64" CornerRadius="32" Background="{StaticResource Surface0}"
+              HorizontalAlignment="Center" Margin="0,0,0,12">
+        <Image Source="avares://SecureGateway/Assets/icon_256.png" Width="40" Height="40"/>
+      </Border>
+      <TextBlock Text="SecureGateway" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
+      <TextBlock Text="Enterprise VPN Client" Classes="label" FontSize="13" HorizontalAlignment="Center" Margin="0,4,0,16"/>
+
+      <Border Classes="card" Padding="22">
+        <StackPanel>
+          <!-- Tabs -->
+          <Grid ColumnDefinitions="*,*" Margin="0,0,0,16" IsVisible="{Binding IsMainMode}">
+            <Button Name="BtnSignInTab" Grid.Column="0" Content="Sign In" HorizontalAlignment="Stretch"
+                    CornerRadius="6,0,0,6" Click="OnSignInTab"/>
+            <Button Name="BtnSignUpTab" Grid.Column="1" Content="Sign Up" HorizontalAlignment="Stretch"
+                    CornerRadius="0,6,6,0" Click="OnSignUpTab"/>
+          </Grid>
+
+          <TextBlock Text="Email" Classes="field" Margin="0,0,0,4"/>
+          <TextBox Name="TxtEmail" Text="{Binding Email}" IsEnabled="{Binding CanInteract}"
+                   Watermark="you@company.com" KeyDown="OnEnter"/>
+
+          <!-- Sign in / sign up -->
+          <StackPanel IsVisible="{Binding IsMainMode}">
+            <TextBlock Text="Password" Classes="field"/>
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBox Name="TxtPassword" Text="{Binding Password}" PasswordChar="●"
+                       IsEnabled="{Binding CanInteract}" KeyDown="OnEnter"/>
+              <Button Grid.Column="1" Classes="link" Content="👁" Margin="6,0,0,0" Click="OnTogglePassword"
+                      ToolTip.Tip="Show / hide password"/>
+            </Grid>
+
+            <Button Classes="link" Content="Forgot password?" HorizontalAlignment="Right" Margin="0,6,0,0"
+                    IsVisible="{Binding IsSignInMode}" Click="OnForgotPassword"/>
+
+            <StackPanel IsVisible="{Binding IsSignUpMode}">
+              <TextBlock Text="Confirm Password" Classes="field"/>
+              <TextBox Text="{Binding ConfirmPassword}" PasswordChar="●" IsEnabled="{Binding CanInteract}" KeyDown="OnEnter"/>
+            </StackPanel>
+
+            <TextBlock Text="{Binding LockoutText}" IsVisible="{Binding HasLockoutText}" Foreground="{StaticResource Peach}"
+                       FontSize="12" HorizontalAlignment="Center" Margin="0,10,0,0" TextWrapping="Wrap"/>
+
+            <CheckBox Content="Remember me" IsChecked="{Binding RememberMe}" Margin="0,12,0,0" FontSize="12"/>
+
+            <Button Name="BtnSubmit" Classes="accent" Content="{Binding SubmitText}" Height="42" FontSize="15"
+                    HorizontalAlignment="Stretch" Margin="0,14,0,0" IsEnabled="{Binding CanInteract}" Click="OnSubmit"/>
+          </StackPanel>
+
+          <!-- Password reset -->
+          <StackPanel IsVisible="{Binding IsResetMode}">
+            <TextBlock Text="We'll e-mail a reset code to the address above." Classes="label" TextWrapping="Wrap" Margin="0,10,0,0"/>
+            <Button Content="Send reset code" HorizontalAlignment="Stretch" Margin="0,10,0,0"
+                    IsEnabled="{Binding CanInteract}" Click="OnSendReset"/>
+
+            <TextBlock Text="Reset code, or paste the link from the e-mail" Classes="field" Margin="0,14,0,4"/>
+            <TextBox Text="{Binding ResetCode}" IsEnabled="{Binding CanInteract}" KeyDown="OnResetEnter"/>
+
+            <TextBlock Text="New password" Classes="field"/>
+            <TextBox Text="{Binding NewPassword}" PasswordChar="●" IsEnabled="{Binding CanInteract}" KeyDown="OnResetEnter"/>
+
+            <Button Classes="accent" Content="Set new password" Height="42" FontSize="15" HorizontalAlignment="Stretch"
+                    Margin="0,14,0,0" IsEnabled="{Binding CanInteract}" Click="OnApplyReset"/>
+            <Button Classes="link" Content="Back to sign in" HorizontalAlignment="Center" Margin="0,12,0,0" Click="OnBackToSignIn"/>
+          </StackPanel>
+
+          <TextBlock Name="TxtStatus" Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="12" Margin="0,10,0,0"/>
+          <TextBlock Text="{Binding BusyText}" IsVisible="{Binding IsBusy}" Classes="label" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</Window>

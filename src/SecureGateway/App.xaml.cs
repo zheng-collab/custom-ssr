@@ -43,7 +43,7 @@ namespace SecureGateway
 
             bool startMinimized = Array.IndexOf(e.Args, "--minimized") >= 0;
 
-            _authService = new AuthService();
+            _authService = new AuthService(new DpapiCredentialStore());
             try
             {
                 await _authService.InitializeAsync();

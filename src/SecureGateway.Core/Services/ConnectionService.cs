@@ -5,6 +5,7 @@ using SecureGateway.Core.Config;
 using SecureGateway.Core.Engines;
 using SecureGateway.Core.Logging;
 using SecureGateway.Models;
+using SecureGateway.Platform;
 using SecureGateway.Utils;
 
 namespace SecureGateway.Services
@@ -12,7 +13,7 @@ namespace SecureGateway.Services
     public class ConnectionService : IDisposable
     {
         private readonly ConfigManager _configManager;
-        private readonly SystemProxyService _systemProxy;
+        private readonly ISystemProxyService _systemProxy;
         private readonly AppLogger _logger;
 
         private IProxyEngine _currentEngine;
@@ -28,11 +29,11 @@ namespace SecureGateway.Services
         public event EventHandler<ConnectionStats> StatsUpdated;
         public event EventHandler<EngineLogEventArgs> LogReceived;
 
-        public ConnectionService(ConfigManager configManager, AppLogger logger)
+        public ConnectionService(ConfigManager configManager, AppLogger logger, ISystemProxyService systemProxy)
         {
             _configManager = configManager;
             _logger = logger;
-            _systemProxy = new SystemProxyService();
+            _systemProxy = systemProxy ?? throw new ArgumentNullException(nameof(systemProxy));
         }
 
         public async Task ConnectAsync(ServerProfile server)
@@ -69,7 +70,7 @@ namespace SecureGateway.Services
                     return;
                 }
 
-                _systemProxy.ConfigureForMode(_configManager.Config.ProxyMode, runtime.LocalHttpPort);
+                _systemProxy.ConfigureForMode(_configManager.Config.ProxyMode, runtime.LocalHttpPort, runtime.LocalSocksPort);
 
                 Stats = new ConnectionStats { ConnectedSince = DateTime.UtcNow };
                 _statsTimer = new Timer(UpdateStats, runtime, 5000, 15000);
@@ -141,7 +142,7 @@ namespace SecureGateway.Services
 
             if (IsConnected && _activeServer != null)
             {
-                _systemProxy.ConfigureForMode(mode, _activeServer.LocalHttpPort);
+                _systemProxy.ConfigureForMode(mode, _activeServer.LocalHttpPort, _activeServer.LocalSocksPort);
                 _logger.Info($"Proxy mode changed to {mode}.");
             }
         }
