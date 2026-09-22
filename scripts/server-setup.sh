@@ -44,9 +44,18 @@ die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 command -v apt-get >/dev/null || die "this script supports Ubuntu/Debian only"
 
 export DEBIAN_FRONTEND=noninteractive
+
+# Some Debian 11 cloud images still reference the retired "bullseye/updates" security
+# suite; its pool paths now 404. Point them at bullseye-security before updating.
+if grep -rqs 'bullseye/updates' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null; then
+    log "Fixing retired bullseye/updates security suite in apt sources"
+    sed -i 's#bullseye/updates#bullseye-security#g' /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+fi
+
 log "Installing prerequisites"
-apt-get update -qq
-apt-get install -y -qq curl unzip ca-certificates >/dev/null
+apt-get update -qq || die "apt-get update failed — check /etc/apt/sources.list"
+apt-get install -y -qq curl unzip ca-certificates >/dev/null \
+    || die "package install failed (see errors above)"
 
 log "Installing v2ray-core"
 bash <(curl -fsSL https://raw.githubusercontent.com/v2fly/fhs-install-v2ray/master/install-release.sh) >/dev/null
