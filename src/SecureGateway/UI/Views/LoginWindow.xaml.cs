@@ -151,7 +151,7 @@ namespace SecureGateway.UI.Views
             var newPassword = TxtNewPassword.Password;
 
             if (string.IsNullOrEmpty(email)) { ShowError("Enter your account e-mail address above."); TxtEmail.Focus(); return; }
-            if (string.IsNullOrEmpty(code)) { ShowError("Enter the reset code from the e-mail."); TxtResetCode.Focus(); return; }
+            if (string.IsNullOrEmpty(code)) { ShowError("Enter the reset code, or paste the reset link from the e-mail."); TxtResetCode.Focus(); return; }
             if (newPassword.Length < 6) { ShowError("New password must be at least 6 characters."); TxtNewPassword.Focus(); return; }
 
             SetLoading(true, "Updating password...");

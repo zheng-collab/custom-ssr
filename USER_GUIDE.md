@@ -91,12 +91,12 @@ The whole reset happens inside the app; no website is involved.
 
 1. Type your account e-mail on the sign-in screen and click **"Forgot password?"**.
 2. Click **Send reset code**. A code is e-mailed to that address (check the spam folder if it doesn't arrive within a minute).
-3. Enter the code and your new password, then click **Set new password**.
+3. Enter the code and your new password, then click **Set new password**. If the e-mail contains a link instead of a code, right-click the link, copy it, and paste the whole link into the code field; the app extracts what it needs. Don't click the link, it leads nowhere useful.
 4. Sign in with the new password. Any lockout from previous failed attempts is cleared, and a saved "Remember me" password is forgotten so it can't conflict with the new one.
 
 Codes expire after a short time; if one is rejected, click **Send reset code** again for a fresh one.
 
-> **Administrator note:** the Supabase "Reset Password" e-mail template must include the `{{ .Token }}` placeholder so the message contains a code the app can accept. In the Supabase dashboard go to **Authentication → Email Templates → Reset Password** and make sure the body contains a line such as `Your reset code is: {{ .Token }}`. Without it the e-mail only carries a web link, which the app cannot use.
+> **Administrator note:** the app works with Supabase's default reset e-mail (the user pastes the link). For a friendlier experience, add the `{{ .Token }}` placeholder to the template so the e-mail also shows a short code: in the Supabase dashboard go to **Authentication → Email Templates → Reset Password** and add a line such as `Your reset code is: {{ .Token }}`.
 
 ### Session Persistence
 
@@ -603,12 +603,12 @@ SecureGateway/
 
 1. 在登录界面输入您的账户邮箱，然后点击**"Forgot password?"（忘记密码？）**。
 2. 点击 **Send reset code（发送重置码）**。重置码会发送到该邮箱（一分钟内未收到请检查垃圾邮件文件夹）。
-3. 输入重置码和新密码，点击 **Set new password（设置新密码）**。
+3. 输入重置码和新密码，点击 **Set new password（设置新密码）**。如果邮件中只有链接而没有重置码，请右键复制该链接，将整个链接粘贴到重置码输入框中，应用会自动提取所需信息。请勿点击该链接，它不会打开任何有用的页面。
 4. 使用新密码登录。之前登录失败造成的锁定会被清除，"记住我"保存的旧密码也会被清除，以免与新密码冲突。
 
 重置码有效期较短；如被拒绝，请再次点击 **Send reset code** 获取新的重置码。
 
-> **管理员注意：** Supabase 的"Reset Password"邮件模板必须包含 `{{ .Token }}` 占位符，邮件中才会有应用可识别的重置码。请在 Supabase 控制台进入 **Authentication → Email Templates → Reset Password**，确保正文包含类似 `Your reset code is: {{ .Token }}` 的一行。若缺少该占位符，邮件中只有网页链接，应用无法使用。
+> **管理员注意：** 应用可直接使用 Supabase 默认的重置邮件（用户粘贴链接即可）。若希望体验更友好，可在模板中加入 `{{ .Token }}` 占位符，让邮件同时显示一个简短的重置码：在 Supabase 控制台进入 **Authentication → Email Templates → Reset Password**，添加类似 `Your reset code is: {{ .Token }}` 的一行。
 
 ### 会话保持
 

@@ -163,9 +163,14 @@ namespace SecureGateway.Services
         {
             try
             {
-                var (accessToken, _, error) = await AuthViaRestAsync(
-                    $"{SupabaseUrl}/auth/v1/verify",
-                    new { type = "recovery", email, token = code.Trim() });
+                // Accept either the short numeric code ({{ .Token }} in the e-mail template)
+                // or the default template's link / its long token hash.
+                var (tokenHash, shortCode) = ParseRecoveryInput(code);
+                object payload = tokenHash != null
+                    ? new { type = "recovery", token_hash = tokenHash }
+                    : new { type = "recovery", email, token = shortCode };
+
+                var (accessToken, _, error) = await AuthViaRestAsync($"{SupabaseUrl}/auth/v1/verify", payload);
 
                 if (error != null)
                     return AuthResult.Failure(error.Contains("expired", StringComparison.OrdinalIgnoreCase)
@@ -222,6 +227,31 @@ namespace SecureGateway.Services
                 ClearCredentials();
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Returns (tokenHash, null) for a pasted reset link or a bare 40+ char hex hash,
+        /// otherwise (null, code) for a short code.
+        /// </summary>
+        internal static (string tokenHash, string code) ParseRecoveryInput(string input)
+        {
+            var s = (input ?? "").Trim();
+
+            if (Uri.TryCreate(s, UriKind.Absolute, out var uri))
+            {
+                var query = uri.Query.TrimStart('?');
+                foreach (var pair in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var eq = pair.IndexOf('=');
+                    if (eq <= 0) continue;
+                    var key = pair[..eq];
+                    if (key == "token" || key == "token_hash")
+                        return (Uri.UnescapeDataString(pair[(eq + 1)..]), null);
+                }
+            }
+
+            bool looksLikeHash = s.Length >= 40 && s.All(c => Uri.IsHexDigit(c));
+            return looksLikeHash ? (s, null) : (null, s);
         }
 
         private async Task<(string accessToken, string refreshToken, string error)> AuthViaRestAsync(

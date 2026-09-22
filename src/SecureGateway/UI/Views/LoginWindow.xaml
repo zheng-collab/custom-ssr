@@ -208,7 +208,7 @@
                         </Button.Template>
                     </Button>
 
-                    <TextBlock Text="Reset code (from the e-mail)" Foreground="#CDD6F4" FontSize="13" Margin="0,14,0,6"/>
+                    <TextBlock Text="Reset code, or paste the link from the e-mail" Foreground="#CDD6F4" FontSize="13" Margin="0,14,0,6"/>
                     <TextBox x:Name="TxtResetCode" Height="38" FontSize="14"
                              Background="#1E1E2E" Foreground="#CDD6F4" BorderBrush="#45475A"
                              Padding="10,8" CaretBrush="#CDD6F4" KeyDown="OnResetKeyDown"/>
