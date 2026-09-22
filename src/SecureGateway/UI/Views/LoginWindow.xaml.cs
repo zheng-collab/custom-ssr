@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
@@ -62,6 +61,7 @@ namespace SecureGateway.UI.Views
             LblConfirmPassword.Visibility = Visibility.Collapsed;
             GridConfirmPassword.Visibility = Visibility.Collapsed;
             LnkForgotPassword.Visibility = Visibility.Visible;
+            if (PanelReset.Visibility == Visibility.Visible) ShowResetPanel(false);
             TxtStatus.Text = "";
             UpdateLockoutUI();
         }
@@ -77,17 +77,104 @@ namespace SecureGateway.UI.Views
             LblConfirmPassword.Visibility = Visibility.Visible;
             GridConfirmPassword.Visibility = Visibility.Visible;
             LnkForgotPassword.Visibility = Visibility.Collapsed;
+            if (PanelReset.Visibility == Visibility.Visible) ShowResetPanel(false);
             TxtStatus.Text = "";
             UpdateLockoutUI();
         }
 
         private void OnForgotPasswordClick(object sender, MouseButtonEventArgs e)
         {
-            Process.Start(new ProcessStartInfo
+            ShowResetPanel(true);
+        }
+
+        private void OnBackToSignInClick(object sender, MouseButtonEventArgs e)
+        {
+            ShowResetPanel(false);
+        }
+
+        private void ShowResetPanel(bool show)
+        {
+            PanelMain.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
+            PanelReset.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            TxtStatus.Text = "";
+
+            if (show)
             {
-                FileName = "https://fourthzodiac.com/forgot-password",
-                UseShellExecute = true
-            });
+                TxtResetCode.Text = "";
+                TxtNewPassword.Password = "";
+                TxtEmail.IsEnabled = true;
+                if (string.IsNullOrWhiteSpace(TxtEmail.Text)) TxtEmail.Focus();
+                else TxtResetCode.Focus();
+            }
+            else
+            {
+                UpdateLockoutUI();
+                TxtPassword.Focus();
+            }
+        }
+
+        private void OnResetKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+                OnApplyResetClick(sender, e);
+        }
+
+        private async void OnSendResetClick(object sender, RoutedEventArgs e)
+        {
+            var email = TxtEmail.Text.Trim();
+            if (string.IsNullOrEmpty(email) || !email.Contains('@'))
+            {
+                ShowError("Enter your account e-mail address above first.");
+                TxtEmail.Focus();
+                return;
+            }
+
+            SetLoading(true, "Sending reset code...");
+            var result = await _authService.RequestPasswordResetAsync(email);
+            SetLoading(false);
+
+            if (result.IsSuccess)
+            {
+                ShowInfo(result.Message + "\nEnter the code below along with your new password.");
+                TxtResetCode.Focus();
+            }
+            else
+            {
+                ShowError(result.Message);
+            }
+        }
+
+        private async void OnApplyResetClick(object sender, RoutedEventArgs e)
+        {
+            var email = TxtEmail.Text.Trim();
+            var code = TxtResetCode.Text.Trim();
+            var newPassword = TxtNewPassword.Password;
+
+            if (string.IsNullOrEmpty(email)) { ShowError("Enter your account e-mail address above."); TxtEmail.Focus(); return; }
+            if (string.IsNullOrEmpty(code)) { ShowError("Enter the reset code from the e-mail."); TxtResetCode.Focus(); return; }
+            if (newPassword.Length < 6) { ShowError("New password must be at least 6 characters."); TxtNewPassword.Focus(); return; }
+
+            SetLoading(true, "Updating password...");
+            var result = await _authService.ResetPasswordWithCodeAsync(email, code, newPassword);
+            SetLoading(false);
+
+            if (!result.IsSuccess)
+            {
+                ShowError(result.Message);
+                return;
+            }
+
+            // A successful reset proves ownership of the account — clear any lockout.
+            _failedAttempts = 0;
+            _lockoutUntil = null;
+            SaveLockoutState();
+            StopCountdownTimer();
+
+            ShowResetPanel(false);
+            TxtPassword.Password = "";
+            TxtPasswordVisible.Text = "";
+            ChkRememberMe.IsChecked = false;
+            ShowInfo(result.Message);
         }
 
         private void OnTogglePasswordClick(object sender, RoutedEventArgs e)
@@ -413,12 +500,17 @@ namespace SecureGateway.UI.Views
             TxtStatus.Text = message;
         }
 
-        private void SetLoading(bool loading)
+        private void SetLoading(bool loading, string message = "Authenticating...")
         {
             BtnSubmit.IsEnabled = !loading;
             TxtEmail.IsEnabled = !loading;
             TxtPassword.IsEnabled = !loading;
             TxtConfirmPassword.IsEnabled = !loading;
+            BtnSendReset.IsEnabled = !loading;
+            BtnApplyReset.IsEnabled = !loading;
+            TxtResetCode.IsEnabled = !loading;
+            TxtNewPassword.IsEnabled = !loading;
+            TxtLoading.Text = message;
             TxtLoading.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
         }
 

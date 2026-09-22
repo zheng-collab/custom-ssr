@@ -70,6 +70,9 @@
                          Padding="10,8" CaretBrush="#CDD6F4"
                          KeyDown="OnInputKeyDown"/>
 
+                <!-- ============ Sign in / Sign up panel ============ -->
+                <StackPanel x:Name="PanelMain">
+
                 <!-- Password -->
                 <TextBlock Text="Password" Foreground="#CDD6F4" FontSize="13" Margin="0,12,0,6"/>
                 <Grid Height="38">
@@ -145,10 +148,6 @@
                     </Button>
                 </Grid>
 
-                <!-- Error/Status message -->
-                <TextBlock x:Name="TxtStatus" Text="" TextWrapping="Wrap"
-                           Foreground="#F38BA8" FontSize="12" Margin="0,10,0,0"/>
-
                 <!-- Lockout / attempt counter bar -->
                 <TextBlock x:Name="TxtLockoutBar" Text="" TextWrapping="Wrap"
                            Foreground="#FAB387" FontSize="12" HorizontalAlignment="Center"
@@ -181,6 +180,83 @@
                         </ControlTemplate>
                     </Button.Template>
                 </Button>
+
+                </StackPanel>
+
+                <!-- ============ Password reset panel ============ -->
+                <StackPanel x:Name="PanelReset" Visibility="Collapsed">
+                    <TextBlock Text="We'll e-mail a reset code to the address above."
+                               Foreground="#A6ADC8" FontSize="12" TextWrapping="Wrap" Margin="0,10,0,0"/>
+
+                    <Button x:Name="BtnSendReset" Content="Send reset code" Height="36" FontSize="13"
+                            Margin="0,10,0,0" Cursor="Hand" Background="#45475A" Foreground="#CDD6F4"
+                            BorderThickness="0" Click="OnSendResetClick">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6" Padding="12,6">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Bd" Property="Background" Value="#585B70"/>
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter Property="Opacity" Value="0.5"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
+                    <TextBlock Text="Reset code (from the e-mail)" Foreground="#CDD6F4" FontSize="13" Margin="0,14,0,6"/>
+                    <TextBox x:Name="TxtResetCode" Height="38" FontSize="14"
+                             Background="#1E1E2E" Foreground="#CDD6F4" BorderBrush="#45475A"
+                             Padding="10,8" CaretBrush="#CDD6F4" KeyDown="OnResetKeyDown"/>
+
+                    <TextBlock Text="New password" Foreground="#CDD6F4" FontSize="13" Margin="0,12,0,6"/>
+                    <PasswordBox x:Name="TxtNewPassword" Height="38" FontSize="14"
+                                 Background="#1E1E2E" Foreground="#CDD6F4" BorderBrush="#45475A"
+                                 Padding="10,8" CaretBrush="#CDD6F4" KeyDown="OnResetKeyDown"/>
+
+                    <Button x:Name="BtnApplyReset" Content="Set new password" Height="42" FontSize="15"
+                            FontWeight="SemiBold" Margin="0,14,0,0" Cursor="Hand"
+                            Background="#89B4FA" Foreground="#1E1E2E" BorderThickness="0"
+                            Click="OnApplyResetClick">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="8" Padding="12,8">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Bd" Property="Background" Value="#74A8F7"/>
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter Property="Opacity" Value="0.5"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
+                    <TextBlock Text="Back to sign in" Foreground="#89B4FA" FontSize="12"
+                               Margin="0,12,0,0" HorizontalAlignment="Center" Cursor="Hand"
+                               MouseLeftButtonUp="OnBackToSignInClick">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="TextDecorations" Value="Underline"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+
+                <!-- Error/Status message (shared by both panels) -->
+                <TextBlock x:Name="TxtStatus" Text="" TextWrapping="Wrap"
+                           Foreground="#F38BA8" FontSize="12" Margin="0,10,0,0"/>
 
                 <!-- Loading indicator -->
                 <TextBlock x:Name="TxtLoading" Text="Authenticating..."

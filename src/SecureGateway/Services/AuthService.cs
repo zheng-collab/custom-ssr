@@ -137,6 +137,76 @@ namespace SecureGateway.Services
             ClearCredentials();
         }
 
+        /// <summary>Asks Supabase to e-mail a password-reset code to the address.</summary>
+        public async Task<AuthResult> RequestPasswordResetAsync(string email)
+        {
+            try
+            {
+                var (_, _, error) = await AuthViaRestAsync($"{SupabaseUrl}/auth/v1/recover", new { email });
+                if (error != null)
+                    return AuthResult.Failure(error);
+
+                return AuthResult.SuccessWithMessage(
+                    "If an account exists for that address, a reset code has been e-mailed to it.");
+            }
+            catch (Exception ex)
+            {
+                return AuthResult.Failure($"Connection error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Verifies the e-mailed recovery code and sets a new password. The temporary
+        /// session this creates is discarded; the user signs in normally afterwards.
+        /// </summary>
+        public async Task<AuthResult> ResetPasswordWithCodeAsync(string email, string code, string newPassword)
+        {
+            try
+            {
+                var (accessToken, _, error) = await AuthViaRestAsync(
+                    $"{SupabaseUrl}/auth/v1/verify",
+                    new { type = "recovery", email, token = code.Trim() });
+
+                if (error != null)
+                    return AuthResult.Failure(error.Contains("expired", StringComparison.OrdinalIgnoreCase)
+                        || error.Contains("invalid", StringComparison.OrdinalIgnoreCase)
+                        ? "That reset code is invalid or has expired. Request a new one."
+                        : error);
+
+                if (string.IsNullOrEmpty(accessToken))
+                    return AuthResult.Failure("Could not verify the reset code. Request a new one.");
+
+                using var request = new HttpRequestMessage(HttpMethod.Put, $"{SupabaseUrl}/auth/v1/user");
+                request.Headers.Add("apikey", SupabaseAnonKey);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                request.Content = new StringContent(
+                    JsonConvert.SerializeObject(new { password = newPassword }), Encoding.UTF8, "application/json");
+
+                using var response = await Http.SendAsync(request);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var body = await response.Content.ReadAsStringAsync();
+                    string msg = null;
+                    try { var err = JObject.Parse(body); msg = err["msg"]?.ToString() ?? err["error_description"]?.ToString(); }
+                    catch { }
+                    return AuthResult.Failure(msg ?? "Could not update the password. Please try again.");
+                }
+
+                // Invalidate the recovery session so only the new password works from here on.
+                using var logout = new HttpRequestMessage(HttpMethod.Post, $"{SupabaseUrl}/auth/v1/logout");
+                logout.Headers.Add("apikey", SupabaseAnonKey);
+                logout.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                try { using var _ = await Http.SendAsync(logout); } catch { }
+
+                ClearCredentials();
+                return AuthResult.SuccessWithMessage("Password updated. Sign in with your new password.");
+            }
+            catch (Exception ex)
+            {
+                return AuthResult.Failure($"Connection error: {ex.Message}");
+            }
+        }
+
         public SavedCredentials LoadCredentials()
         {
             try

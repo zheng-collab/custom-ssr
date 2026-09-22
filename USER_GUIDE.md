@@ -87,8 +87,16 @@ When you first launch SecureGateway, you will see the **Sign In** window.
 
 ### Forgot Password
 
-1. Click **"Forgot password?"** on the sign-in screen.
-2. Follow the instructions sent to your email to reset your password.
+The whole reset happens inside the app; no website is involved.
+
+1. Type your account e-mail on the sign-in screen and click **"Forgot password?"**.
+2. Click **Send reset code**. A code is e-mailed to that address (check the spam folder if it doesn't arrive within a minute).
+3. Enter the code and your new password, then click **Set new password**.
+4. Sign in with the new password. Any lockout from previous failed attempts is cleared, and a saved "Remember me" password is forgotten so it can't conflict with the new one.
+
+Codes expire after a short time; if one is rejected, click **Send reset code** again for a fresh one.
+
+> **Administrator note:** the Supabase "Reset Password" e-mail template must include the `{{ .Token }}` placeholder so the message contains a code the app can accept. In the Supabase dashboard go to **Authentication → Email Templates → Reset Password** and make sure the body contains a line such as `Your reset code is: {{ .Token }}`. Without it the e-mail only carries a web link, which the app cannot use.
 
 ### Session Persistence
 
@@ -591,8 +599,16 @@ SecureGateway/
 
 ### 忘记密码
 
-1. 在登录界面点击**"Forgot password?"（忘记密码？）**。
-2. 按照发送到邮箱的说明重置密码。
+整个重置过程都在应用内完成，无需访问任何网站。
+
+1. 在登录界面输入您的账户邮箱，然后点击**"Forgot password?"（忘记密码？）**。
+2. 点击 **Send reset code（发送重置码）**。重置码会发送到该邮箱（一分钟内未收到请检查垃圾邮件文件夹）。
+3. 输入重置码和新密码，点击 **Set new password（设置新密码）**。
+4. 使用新密码登录。之前登录失败造成的锁定会被清除，"记住我"保存的旧密码也会被清除，以免与新密码冲突。
+
+重置码有效期较短；如被拒绝，请再次点击 **Send reset code** 获取新的重置码。
+
+> **管理员注意：** Supabase 的"Reset Password"邮件模板必须包含 `{{ .Token }}` 占位符，邮件中才会有应用可识别的重置码。请在 Supabase 控制台进入 **Authentication → Email Templates → Reset Password**，确保正文包含类似 `Your reset code is: {{ .Token }}` 的一行。若缺少该占位符，邮件中只有网页链接，应用无法使用。
 
 ### 会话保持
 
