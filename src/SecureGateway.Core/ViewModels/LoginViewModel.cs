@@ -132,6 +132,15 @@ namespace SecureGateway.UI.ViewModels
         }
 
         // ---- actions --------------------------------------------------------------------------
+        /// <summary>Status text after "Forgot password?" opened (or failed to open) the website.</summary>
+        public void ShowWebResetHint(bool browserOpened)
+        {
+            if (browserOpened)
+                ShowInfo($"Opened {AuthService.PasswordResetUrl} in your browser.\nReset your password there, then sign in here.");
+            else
+                ShowError($"Could not open the browser. Visit {AuthService.PasswordResetUrl} to reset your password.");
+        }
+
         public async Task SubmitAsync()
         {
             if (IsLockedOut) { UpdateLockoutText(); return; }

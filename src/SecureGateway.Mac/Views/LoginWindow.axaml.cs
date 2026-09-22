@@ -66,7 +66,15 @@ namespace SecureGateway.Mac.Views
 
         private void OnSignInTab(object sender, RoutedEventArgs e) => _vm.IsSignUpMode = false;
         private void OnSignUpTab(object sender, RoutedEventArgs e) => _vm.IsSignUpMode = true;
-        private void OnForgotPassword(object sender, RoutedEventArgs e) => _vm.IsResetMode = true;
+        private void OnForgotPassword(object sender, RoutedEventArgs e)
+        {
+            if (AuthService.UsesWebPasswordReset)
+            {
+                _vm.ShowWebResetHint(AuthService.OpenPasswordResetPage());
+                return;
+            }
+            _vm.IsResetMode = true;
+        }
         private void OnBackToSignIn(object sender, RoutedEventArgs e) => _vm.IsResetMode = false;
 
         private void OnTogglePassword(object sender, RoutedEventArgs e)

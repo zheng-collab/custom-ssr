@@ -1,0 +1,102 @@
+# Builds installers for every platform and, on a version tag, publishes them as a GitHub Release.
+#
+#   git tag v1.0.1 && git push origin v1.0.1      -> Release "v1.0.1" with:
+#       SecureGateway-Setup-<ver>.exe, SecureGateway-<ver>-win-x64.zip,
+#       SecureGateway-<ver>-macos-arm64.dmg, SecureGateway-<ver>-macos-x64.dmg
+#
+# Every push / pull request just builds (and runs the headless UI test) so breakage is caught early.
+# "Run workflow" in the Actions tab builds on demand and keeps the files as workflow artifacts.
+
+name: build
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  DOTNET_NOLOGO: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+
+jobs:
+  test-ui:
+    name: Headless UI test (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Run headless smoke test
+        run: dotnet run --project tests/SecureGateway.Mac.Smoke -c Release -- "$RUNNER_TEMP/smoke"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ui-screenshots
+          path: ${{ runner.temp }}/smoke/*.png
+          if-no-files-found: warn
+
+  windows:
+    name: Windows installer + zip
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+      - name: Build, publish, package
+        shell: pwsh
+        run: .\scripts\build.ps1 -Installer -Zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            build/SecureGateway-Setup-*.exe
+            build/SecureGateway-*-win-x64.zip
+          if-no-files-found: error
+
+  macos:
+    name: macOS ${{ matrix.arch }} DMG
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [arm64, x64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Build .app and .dmg
+        run: ./scripts/build-mac.sh --arch ${{ matrix.arch }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}
+          path: build/SecureGateway-*-macos-${{ matrix.arch }}.dmg
+          if-no-files-found: error
+
+  release:
+    name: GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test-ui, windows, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: List files
+        run: find dist -type f | sort
+      - name: Create release and attach installers
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "SecureGateway $TAG" \
+            --generate-notes \
+            dist/windows/* dist/macos-arm64/* dist/macos-x64/*

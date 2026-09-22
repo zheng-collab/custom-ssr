@@ -28,6 +28,32 @@ namespace SecureGateway.Services
         private const string RequiredPermission = "gateway.access";
         private const int SessionMaxDays = 120;
 
+        /// <summary>
+        /// Where "Forgot password?" sends the user. Non-empty: the login screen opens this page
+        /// in the browser (the website runs the reset). Empty: the in-app reset panel is used
+        /// (RequestPasswordResetAsync / ResetPasswordWithCodeAsync).
+        /// </summary>
+        public const string PasswordResetUrl = "https://fourthzodiac.com/forgot-password";
+
+        public static bool UsesWebPasswordReset => !string.IsNullOrEmpty(PasswordResetUrl);
+
+        /// <summary>Opens the website reset page in the default browser. Returns false if that failed.</summary>
+        public static bool OpenPasswordResetPage()
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(PasswordResetUrl)
+                {
+                    UseShellExecute = true
+                });
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private static readonly string AppDataDir = AppPaths.DataDir;
         private static readonly string TokenFile = Path.Combine(AppDataDir, "auth_session.json");
 

@@ -111,16 +111,13 @@ When you first launch SecureGateway, you will see the **Sign In** window.
 
 ### Forgot Password
 
-The whole reset happens inside the app; no website is involved.
+1. Click **"Forgot password?"** on the sign-in screen. Your browser opens the company reset page at `https://fourthzodiac.com/forgot-password`.
+2. Enter your e-mail there and follow the instructions in the e-mail you receive to set a new password.
+3. Return to SecureGateway and sign in with the new password. If a saved "Remember me" password is now wrong, clear the Password field and type the new one; ticking "Remember me" again stores it.
 
-1. Type your account e-mail on the sign-in screen and click **"Forgot password?"**.
-2. Click **Send reset code**. A code is e-mailed to that address (check the spam folder if it doesn't arrive within a minute).
-3. Enter the code and your new password, then click **Set new password**. If the e-mail contains a link instead of a code, either right-click the link, copy it, and paste the whole link into the code field, or click it: it opens a page that can't be displayed, which is expected. Copy the address from the browser's address bar (it starts with `http://localhost:3000/#access_token=`) and paste that into the code field instead. Either form works; the app extracts what it needs. Links and their addresses are secrets, so don't forward them.
-4. Sign in with the new password. Any lockout from previous failed attempts is cleared, and a saved "Remember me" password is forgotten so it can't conflict with the new one.
+The website and the app use the same account, so a password changed on the website works in the app immediately, and vice versa.
 
-Codes expire after a short time; if one is rejected, click **Send reset code** again for a fresh one.
-
-> **Administrator note:** the app works with Supabase's default reset e-mail (the user pastes the link). For a friendlier experience, add the `{{ .Token }}` placeholder to the template so the e-mail also shows a short code: in the Supabase dashboard go to **Authentication → Email Templates → Reset Password** and add a line such as `Your reset code is: {{ .Token }}`.
+> **Administrator note:** the reset is handled by the website (the same Supabase project). Make sure the Supabase **Site URL** (Authentication → URL Configuration) points at `https://fourthzodiac.com` so links in reset e-mails land on your page. The app can also run the whole reset itself (code or link pasted into the login window); to switch to that, set `PasswordResetUrl` to an empty string in `src/SecureGateway.Core/Services/AuthService.cs` and rebuild.
 
 ### Session Persistence
 
@@ -661,16 +658,13 @@ SecureGateway/
 
 ### 忘记密码
 
-整个重置过程都在应用内完成，无需访问任何网站。
+1. 在登录界面点击**"Forgot password?"（忘记密码？）**。浏览器会打开公司的密码重置页面 `https://fourthzodiac.com/forgot-password`。
+2. 在网页中输入您的邮箱，按收到的邮件中的说明设置新密码。
+3. 回到 SecureGateway，使用新密码登录。如果"记住我"保存的旧密码已失效，清空密码框后输入新密码；再次勾选"记住我"即可保存新密码。
 
-1. 在登录界面输入您的账户邮箱，然后点击**"Forgot password?"（忘记密码？）**。
-2. 点击 **Send reset code（发送重置码）**。重置码会发送到该邮箱（一分钟内未收到请检查垃圾邮件文件夹）。
-3. 输入重置码和新密码，点击 **Set new password（设置新密码）**。如果邮件中只有链接而没有重置码，可以右键复制该链接并将整个链接粘贴到重置码输入框；也可以直接点击链接——它会打开一个无法显示的页面，这是正常的。此时复制浏览器地址栏中的地址（以 `http://localhost:3000/#access_token=` 开头）并粘贴到重置码输入框即可。两种方式都可以，应用会自动提取所需信息。链接及其地址属于机密信息，请勿转发。
-4. 使用新密码登录。之前登录失败造成的锁定会被清除，"记住我"保存的旧密码也会被清除，以免与新密码冲突。
+网站与应用使用同一个账号，在网站上修改的密码在应用中立即生效，反之亦然。
 
-重置码有效期较短；如被拒绝，请再次点击 **Send reset code** 获取新的重置码。
-
-> **管理员注意：** 应用可直接使用 Supabase 默认的重置邮件（用户粘贴链接即可）。若希望体验更友好，可在模板中加入 `{{ .Token }}` 占位符，让邮件同时显示一个简短的重置码：在 Supabase 控制台进入 **Authentication → Email Templates → Reset Password**，添加类似 `Your reset code is: {{ .Token }}` 的一行。
+> **管理员注意：** 密码重置由网站（同一个 Supabase 项目）处理。请确认 Supabase 的 **Site URL**（Authentication → URL Configuration）指向 `https://fourthzodiac.com`，使重置邮件中的链接落在您的页面上。应用本身也支持在登录窗口内完成整个重置流程（粘贴重置码或链接）；如需切换，将 `src/SecureGateway.Core/Services/AuthService.cs` 中的 `PasswordResetUrl` 设为空字符串并重新编译即可。
 
 ### 会话保持
 

@@ -187,7 +187,16 @@ dotnet run --project tests/SecureGateway.Mac.Smoke -c Release -- /tmp/sg-smoke
 
 ## Distributing to Users
 
-Build the packages (both imply `-Publish`):
+**Easiest: let GitHub build every installer.** The workflow in `.github/workflows/build.yml` builds the Windows installer + zip on a Windows runner and the macOS DMGs (Apple Silicon and Intel) on a real macOS runner, so no Mac is needed. Pushing a version tag publishes all of them as a GitHub Release:
+
+```powershell
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+A few minutes later, the repo's **Releases** page has the download links to share. Every ordinary push also runs the builds plus the headless UI test, and *Actions → build → Run workflow* produces the files on demand as artifacts. (macOS builds from the runner are ad-hoc signed; add a Developer ID certificate as a secret and pass `--sign` to notarize.)
+
+**Or build locally.** Windows packages (both imply `-Publish`):
 
 ```powershell
 .\scripts\build.ps1 -Installer          # build\SecureGateway-Setup-<version>.exe   (needs Inno Setup 6)

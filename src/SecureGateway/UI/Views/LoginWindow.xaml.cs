@@ -83,6 +83,15 @@ namespace SecureGateway.UI.Views
 
         private void OnForgotPasswordClick(object sender, MouseButtonEventArgs e)
         {
+            if (AuthService.UsesWebPasswordReset)
+            {
+                if (AuthService.OpenPasswordResetPage())
+                    ShowInfo($"Opened {AuthService.PasswordResetUrl} in your browser.\nReset your password there, then sign in here.");
+                else
+                    ShowError($"Could not open the browser. Visit {AuthService.PasswordResetUrl} to reset your password.");
+                return;
+            }
+
             ShowResetPanel(true);
         }
 
