@@ -1,7 +1,8 @@
 <Window x:Class="SecureGateway.UI.Views.LoginWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="SecureGateway - Sign In" Height="660" Width="400"
+        Title="SecureGateway - Sign In" Width="400" MinHeight="560"
+        SizeToContent="Height"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         Background="#1E1E2E">
 
