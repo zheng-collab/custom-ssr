@@ -107,6 +107,17 @@ Write-Host "  Build succeeded." -ForegroundColor Green
 if ($Publish) {
     Write-Host "[3/3] Publishing self-contained executable..." -ForegroundColor Yellow
     $PublishDir = Join-Path $OutputDir "publish"
+
+    # A SecureGateway (or its v2ray engine) still running from the publish folder locks
+    # the exe and the bundler fails with "Access to the path ... is denied". Stop only
+    # instances that were started from this exact output folder.
+    $running = Get-Process -Name "SecureGateway", "v2ray" -ErrorAction SilentlyContinue |
+               Where-Object { $_.Path -and $_.Path.StartsWith($PublishDir, [StringComparison]::OrdinalIgnoreCase) }
+    if ($running) {
+        Write-Host "  Stopping running instance(s) from $PublishDir ..." -ForegroundColor DarkYellow
+        $running | Stop-Process -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 2
+    }
     dotnet publish "$ProjectDir\SecureGateway.csproj" `
         -c $Configuration `
         -r win-x64 `
