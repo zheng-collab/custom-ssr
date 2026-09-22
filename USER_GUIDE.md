@@ -98,7 +98,7 @@ The whole reset happens inside the app; no website is involved.
 
 1. Type your account e-mail on the sign-in screen and click **"Forgot password?"**.
 2. Click **Send reset code**. A code is e-mailed to that address (check the spam folder if it doesn't arrive within a minute).
-3. Enter the code and your new password, then click **Set new password**. If the e-mail contains a link instead of a code, right-click the link, copy it, and paste the whole link into the code field; the app extracts what it needs. Don't click the link, it leads nowhere useful.
+3. Enter the code and your new password, then click **Set new password**. If the e-mail contains a link instead of a code, either right-click the link, copy it, and paste the whole link into the code field, or click it: it opens a page that can't be displayed, which is expected. Copy the address from the browser's address bar (it starts with `http://localhost:3000/#access_token=`) and paste that into the code field instead. Either form works; the app extracts what it needs. Links and their addresses are secrets, so don't forward them.
 4. Sign in with the new password. Any lockout from previous failed attempts is cleared, and a saved "Remember me" password is forgotten so it can't conflict with the new one.
 
 Codes expire after a short time; if one is rejected, click **Send reset code** again for a fresh one.
@@ -631,7 +631,7 @@ SecureGateway/
 
 1. 在登录界面输入您的账户邮箱，然后点击**"Forgot password?"（忘记密码？）**。
 2. 点击 **Send reset code（发送重置码）**。重置码会发送到该邮箱（一分钟内未收到请检查垃圾邮件文件夹）。
-3. 输入重置码和新密码，点击 **Set new password（设置新密码）**。如果邮件中只有链接而没有重置码，请右键复制该链接，将整个链接粘贴到重置码输入框中，应用会自动提取所需信息。请勿点击该链接，它不会打开任何有用的页面。
+3. 输入重置码和新密码，点击 **Set new password（设置新密码）**。如果邮件中只有链接而没有重置码，可以右键复制该链接并将整个链接粘贴到重置码输入框；也可以直接点击链接——它会打开一个无法显示的页面，这是正常的。此时复制浏览器地址栏中的地址（以 `http://localhost:3000/#access_token=` 开头）并粘贴到重置码输入框即可。两种方式都可以，应用会自动提取所需信息。链接及其地址属于机密信息，请勿转发。
 4. 使用新密码登录。之前登录失败造成的锁定会被清除，"记住我"保存的旧密码也会被清除，以免与新密码冲突。
 
 重置码有效期较短；如被拒绝，请再次点击 **Send reset code** 获取新的重置码。

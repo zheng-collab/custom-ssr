@@ -163,23 +163,34 @@ namespace SecureGateway.Services
         {
             try
             {
-                // Accept either the short numeric code ({{ .Token }} in the e-mail template)
-                // or the default template's link / its long token hash.
-                var (tokenHash, shortCode) = ParseRecoveryInput(code);
-                object payload = tokenHash != null
-                    ? new { type = "recovery", token_hash = tokenHash }
-                    : new { type = "recovery", email, token = shortCode };
+                // Accepts: the short code ({{ .Token }} in the e-mail template), the e-mail's
+                // verify link or its token hash, or — if the user already clicked the link —
+                // the page it redirected to, whose #fragment carries a recovery access token.
+                var (kind, value) = ParseRecoveryInput(code);
+                string accessToken;
 
-                var (accessToken, _, error) = await AuthViaRestAsync($"{SupabaseUrl}/auth/v1/verify", payload);
+                if (kind == RecoveryInputKind.AccessToken)
+                {
+                    accessToken = value;
+                }
+                else
+                {
+                    object payload = kind == RecoveryInputKind.TokenHash
+                        ? new { type = "recovery", token_hash = value }
+                        : new { type = "recovery", email, token = value };
 
-                if (error != null)
-                    return AuthResult.Failure(error.Contains("expired", StringComparison.OrdinalIgnoreCase)
-                        || error.Contains("invalid", StringComparison.OrdinalIgnoreCase)
-                        ? "That reset code is invalid or has expired. Request a new one."
-                        : error);
+                    string error;
+                    (accessToken, _, error) = await AuthViaRestAsync($"{SupabaseUrl}/auth/v1/verify", payload);
 
-                if (string.IsNullOrEmpty(accessToken))
-                    return AuthResult.Failure("Could not verify the reset code. Request a new one.");
+                    if (error != null)
+                        return AuthResult.Failure(error.Contains("expired", StringComparison.OrdinalIgnoreCase)
+                            || error.Contains("invalid", StringComparison.OrdinalIgnoreCase)
+                            ? "That reset code or link is invalid, expired, or already used. Request a new one."
+                            : error);
+
+                    if (string.IsNullOrEmpty(accessToken))
+                        return AuthResult.Failure("Could not verify the reset code. Request a new one.");
+                }
 
                 using var request = new HttpRequestMessage(HttpMethod.Put, $"{SupabaseUrl}/auth/v1/user");
                 request.Headers.Add("apikey", SupabaseAnonKey);
@@ -194,6 +205,10 @@ namespace SecureGateway.Services
                     string msg = null;
                     try { var err = JObject.Parse(body); msg = err["msg"]?.ToString() ?? err["error_description"]?.ToString(); }
                     catch { }
+
+                    if ((int)response.StatusCode == 401 && kind == RecoveryInputKind.AccessToken)
+                        msg = "That reset link has expired (they last one hour). Request a new one.";
+
                     return AuthResult.Failure(msg ?? "Could not update the password. Please try again.");
                 }
 
@@ -229,29 +244,45 @@ namespace SecureGateway.Services
             }
         }
 
+        internal enum RecoveryInputKind { Code, TokenHash, AccessToken }
+
         /// <summary>
-        /// Returns (tokenHash, null) for a pasted reset link or a bare 40+ char hex hash,
-        /// otherwise (null, code) for a short code.
+        /// Classifies what the user pasted into the reset-code field:
+        ///  - the redirect page a clicked link landed on (#access_token=…&amp;type=recovery) → AccessToken
+        ///  - the unclicked verify link (?token=… / ?token_hash=…) or a bare 40+ hex hash → TokenHash
+        ///  - anything else → Code
         /// </summary>
-        internal static (string tokenHash, string code) ParseRecoveryInput(string input)
+        internal static (RecoveryInputKind kind, string value) ParseRecoveryInput(string input)
         {
             var s = (input ?? "").Trim();
 
             if (Uri.TryCreate(s, UriKind.Absolute, out var uri))
             {
-                var query = uri.Query.TrimStart('?');
-                foreach (var pair in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
-                {
-                    var eq = pair.IndexOf('=');
-                    if (eq <= 0) continue;
-                    var key = pair[..eq];
-                    if (key == "token" || key == "token_hash")
-                        return (Uri.UnescapeDataString(pair[(eq + 1)..]), null);
-                }
+                var fragment = ParseParams(uri.Fragment.TrimStart('#'));
+                if (fragment.TryGetValue("access_token", out var at) && !string.IsNullOrEmpty(at))
+                    return (RecoveryInputKind.AccessToken, at);
+
+                var query = ParseParams(uri.Query.TrimStart('?'));
+                if (query.TryGetValue("token_hash", out var th) && !string.IsNullOrEmpty(th))
+                    return (RecoveryInputKind.TokenHash, th);
+                if (query.TryGetValue("token", out var t) && !string.IsNullOrEmpty(t))
+                    return (RecoveryInputKind.TokenHash, t);
             }
 
             bool looksLikeHash = s.Length >= 40 && s.All(c => Uri.IsHexDigit(c));
-            return looksLikeHash ? (s, null) : (null, s);
+            return looksLikeHash ? (RecoveryInputKind.TokenHash, s) : (RecoveryInputKind.Code, s);
+        }
+
+        private static System.Collections.Generic.Dictionary<string, string> ParseParams(string s)
+        {
+            var d = new System.Collections.Generic.Dictionary<string, string>();
+            foreach (var pair in s.Split('&', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var eq = pair.IndexOf('=');
+                if (eq <= 0) continue;
+                d[pair[..eq]] = Uri.UnescapeDataString(pair[(eq + 1)..]);
+            }
+            return d;
         }
 
         private async Task<(string accessToken, string refreshToken, string error)> AuthViaRestAsync(
