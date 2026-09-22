@@ -444,6 +444,19 @@ The Startup Script stores your admin password in Vultr; use a dedicated admin ac
 
 ### Shadowsocks Server
 
+> The app supports Shadowsocks with AEAD ciphers (aes-256-gcm, chacha20-ietf-poly1305). It does **not** support ShadowsocksR (SSR), an abandoned fork with a different wire protocol.
+
+**Quick way (one command), Debian 11/12 or Ubuntu:** upload `scripts/shadowsocks-setup.sh` and run it as root, or from Windows:
+
+```powershell
+.\scripts\deploy-server.ps1 -ServerIp YOUR_SERVER_IP -Shadowsocks
+.\scripts\deploy-server.ps1 -ServerIp YOUR_SERVER_IP -Shadowsocks -AdminEmail admin@company.com   # + auto-register in Supabase
+```
+
+It installs `shadowsocks-libev`, generates a strong password, enables BBR, opens the firewall port, starts the service and prints an `ss://` link for **Servers → Import from Clipboard**. Set `PORT=443` or `METHOD=chacha20-ietf-poly1305` in the environment to change defaults. Re-running keeps the existing password.
+
+**Manual way:**
+
 1. **Install on your VPS:**
    ```bash
    apt install shadowsocks-libev
@@ -963,6 +976,19 @@ Startup Script 会将管理员密码保存在 Vultr 中；请使用一个仅拥�
    - TLS：启用
 
 ### Shadowsocks 服务器
+
+> 应用支持使用 AEAD 加密的 Shadowsocks（aes-256-gcm、chacha20-ietf-poly1305）。**不支持** ShadowsocksR（SSR）——那是一个已停止维护的分支，协议并不兼容。
+
+**快速方式（一条命令），适用于 Debian 11/12 或 Ubuntu：** 上传 `scripts/shadowsocks-setup.sh` 并以 root 运行，或在 Windows 上：
+
+```powershell
+.\scripts\deploy-server.ps1 -ServerIp 服务器IP -Shadowsocks
+.\scripts\deploy-server.ps1 -ServerIp 服务器IP -Shadowsocks -AdminEmail admin@company.com   # 并自动注册到 Supabase
+```
+
+脚本会安装 `shadowsocks-libev`、生成强密码、启用 BBR、开放防火墙端口、启动服务，并输出一个 `ss://` 链接，可在应用中通过 **服务器 → 从剪贴板导入**。可通过环境变量 `PORT=443` 或 `METHOD=chacha20-ietf-poly1305` 修改默认值。重复运行会保留原有密码。
+
+**手动方式：**
 
 1. **在 VPS 上安装：**
    ```bash

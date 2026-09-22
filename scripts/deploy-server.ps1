@@ -4,9 +4,12 @@
 #   .\scripts\deploy-server.ps1 -ServerIp 45.76.1.2
 #   .\scripts\deploy-server.ps1 -ServerIp 45.76.1.2 -Domain vpn.example.com
 #   .\scripts\deploy-server.ps1 -ServerIp 45.76.1.2 -AdminEmail admin@company.com
+#   .\scripts\deploy-server.ps1 -ServerIp 45.76.1.2 -Shadowsocks          # Shadowsocks instead of V2Ray
 #
 # -AdminEmail makes the server register itself in Supabase (you are prompted for that
 #  account's password). The account needs the gateway.admin permission.
+# -Shadowsocks runs shadowsocks-setup.sh (AEAD, port 8388) instead of server-setup.sh;
+#  -Domain is ignored in that mode.
 #
 # You will be asked for the VPS root password once (Vultr dashboard -> server -> Password).
 # Requires the OpenSSH client that ships with Windows 10/11.
@@ -15,12 +18,15 @@ param(
     [Parameter(Mandatory = $true)] [string]$ServerIp,
     [string]$Domain = "",
     [string]$AdminEmail = "",
-    [string]$User = "root"
+    [string]$User = "root",
+    [switch]$Shadowsocks
 )
 
 $ErrorActionPreference = "Stop"
-$script = Join-Path $PSScriptRoot "server-setup.sh"
-if (-not (Test-Path $script)) { Write-Error "server-setup.sh not found next to this script."; exit 1 }
+$scriptName = if ($Shadowsocks) { "shadowsocks-setup.sh" } else { "server-setup.sh" }
+$script = Join-Path $PSScriptRoot $scriptName
+if (-not (Test-Path $script)) { Write-Error "$scriptName not found next to this script."; exit 1 }
+if ($Shadowsocks) { $Domain = "" }
 if (-not (Get-Command ssh -ErrorAction SilentlyContinue)) {
     Write-Error "ssh not found. Install 'OpenSSH Client' via Settings > Apps > Optional Features."; exit 1
 }
