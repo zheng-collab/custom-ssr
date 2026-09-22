@@ -39,6 +39,13 @@
 1. Extract the release package to any folder (e.g., `C:\Program Files\SecureGateway\`). Keep `SecureGateway.exe` and the `v2ray-core` folder together — the engine is bundled, nothing else needs to be installed.
 2. Double-click `SecureGateway.exe` to launch.
 
+**If Windows refuses to start it:**
+
+- *"Windows protected your PC"* (SmartScreen): click **More info → Run anyway**. This appears for any new, rarely downloaded program and goes away once the build is code-signed.
+- *"This app has been blocked by Smart App Control"* (Windows 11): there is no "run anyway" option. Either your administrator must distribute a **signed** build (see the note below), or Smart App Control must be turned off on the PC: **Settings → Privacy & security → Windows Security → App & browser control → Smart App Control settings → Off**. Windows only allows it to be switched off once; it cannot be re-enabled later without reinstalling Windows.
+
+> **Administrator note:** to pass Smart App Control on every employee PC, sign the build with a certificate from a Microsoft-trusted authority (Azure Trusted Signing, or an OV code-signing certificate from DigiCert, Sectigo, etc. — self-signed certificates do not count). Then publish with `.\scripts\build.ps1 -Publish -SignCert C:\path\company.pfx`, which signs both `SecureGateway.exe` and `v2ray-core\v2ray.exe`.
+
 ### Option B: Build from Source
 
 ```powershell
@@ -481,7 +488,8 @@ The Startup Script stores your admin password in Vultr; use a dedicated admin ac
 
 | Problem | Solution |
 |---------|----------|
-| Engine fails to start | Ensure the `v2ray-core` folder from the release package is still next to `SecureGateway.exe` (re-extract the package if it was moved or deleted by antivirus). |
+| App won't open at all (Smart App Control / SmartScreen) | See "If Windows refuses to start it" under Installation. |
+| Engine fails to start | Ensure the `v2ray-core` folder from the release package is still next to `SecureGateway.exe` (re-extract the package if it was moved or deleted by antivirus). On Windows 11 with Smart App Control, `v2ray.exe` must be signed too; an unsigned engine is blocked silently. |
 | Connection timeout | Verify the server address, port, and that the server is running. |
 | TLS handshake failure | Check that TLS settings (SNI, certificates) match your server configuration. |
 | Port conflict | Handled automatically — the app picks the next free port and logs it. Check the Log tab if you configured another app to use 127.0.0.1:10808 manually. |
@@ -550,6 +558,13 @@ The Startup Script stores your admin password in Vultr; use a dedicated admin ac
 
 1. 将发布包解压到任意文件夹（如 `C:\Program Files\SecureGateway\`）。请保持 `SecureGateway.exe` 与 `v2ray-core` 文件夹在同一目录——引擎已内置，无需额外安装任何软件。
 2. 双击 `SecureGateway.exe` 启动。
+
+**如果 Windows 拒绝启动：**
+
+- *"Windows 已保护你的电脑"*（SmartScreen）：点击**更多信息 → 仍要运行**。任何新的、下载量少的程序都会出现此提示，程序经过代码签名后即不再出现。
+- *"Smart App Control 已阻止此应用"*（Windows 11）：没有"仍要运行"选项。要么由管理员分发**已签名**的版本（见下方说明），要么在该电脑上关闭 Smart App Control：**设置 → 隐私和安全性 → Windows 安全中心 → 应用和浏览器控制 → Smart App Control 设置 → 关闭**。Windows 只允许关闭一次，之后无法重新开启，除非重装系统。
+
+> **管理员注意：** 要让应用在所有员工电脑上通过 Smart App Control，需使用微软信任的证书颁发机构签发的证书对程序进行签名（Azure Trusted Signing，或 DigiCert、Sectigo 等机构的 OV 代码签名证书——自签名证书无效）。然后使用 `.\scripts\build.ps1 -Publish -SignCert C:\path\company.pfx` 发布，该命令会同时签名 `SecureGateway.exe` 和 `v2ray-core\v2ray.exe`。
 
 ### 方式 B：从源码编译
 
@@ -993,7 +1008,8 @@ Startup Script 会将管理员密码保存在 Vultr 中；请使用一个仅拥�
 
 | 问题 | 解决方案 |
 |------|----------|
-| 引擎启动失败 | 确保发布包中的 `v2ray-core` 文件夹仍与 `SecureGateway.exe` 在同一目录（若被移动或被杀毒软件删除，请重新解压发布包）。 |
+| 应用完全无法打开（Smart App Control / SmartScreen） | 参见"安装"一节中的"如果 Windows 拒绝启动"。 |
+| 引擎启动失败 | 确保发布包中的 `v2ray-core` 文件夹仍与 `SecureGateway.exe` 在同一目录（若被移动或被杀毒软件删除，请重新解压发布包）。在开启 Smart App Control 的 Windows 11 上，`v2ray.exe` 也必须签名，否则会被静默阻止。 |
 | 连接超时 | 验证服务器地址、端口，确认服务器正在运行。 |
 | TLS 握手失败 | 检查 TLS 设置（SNI、证书）是否与服务器配置匹配。 |
 | 端口冲突 | 自动处理——应用会选择下一个可用端口并记录在日志中。如果您手动将其他应用配置为使用 127.0.0.1:10808，请查看日志标签页确认实际端口。 |
