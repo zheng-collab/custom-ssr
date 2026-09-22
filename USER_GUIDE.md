@@ -453,7 +453,7 @@ The Startup Script stores your admin password in Vultr; use a dedicated admin ac
 .\scripts\deploy-server.ps1 -ServerIp YOUR_SERVER_IP -Shadowsocks -AdminEmail admin@company.com   # + auto-register in Supabase
 ```
 
-It installs `shadowsocks-libev`, generates a strong password, enables BBR, opens the firewall port, starts the service and prints an `ss://` link for **Servers → Import from Clipboard**. Set `PORT=443` or `METHOD=chacha20-ietf-poly1305` in the environment to change defaults. Re-running keeps the existing password.
+It installs the latest `shadowsocks-rust` server as a static binary from GitHub (no distro packages, so it also works on end-of-life releases such as Debian 11 whose apt repositories have gone away), generates a strong password, sets up a hardened systemd service, enables BBR, opens the firewall port, starts the service and prints an `ss://` link for **Servers → Import from Clipboard**. Set `PORT=443` or `METHOD=chacha20-ietf-poly1305` in the environment to change defaults. Re-running keeps the existing password.
 
 **Manual way:**
 
@@ -986,7 +986,7 @@ Startup Script 会将管理员密码保存在 Vultr 中；请使用一个仅拥�
 .\scripts\deploy-server.ps1 -ServerIp 服务器IP -Shadowsocks -AdminEmail admin@company.com   # 并自动注册到 Supabase
 ```
 
-脚本会安装 `shadowsocks-libev`、生成强密码、启用 BBR、开放防火墙端口、启动服务，并输出一个 `ss://` 链接，可在应用中通过 **服务器 → 从剪贴板导入**。可通过环境变量 `PORT=443` 或 `METHOD=chacha20-ietf-poly1305` 修改默认值。重复运行会保留原有密码。
+脚本会从 GitHub 安装最新的 `shadowsocks-rust` 静态二进制服务端（不依赖发行版软件包，因此在 Debian 11 等已停止支持、apt 软件源已下线的系统上同样可用）、生成强密码、创建加固的 systemd 服务、启用 BBR、开放防火墙端口、启动服务，并输出一个 `ss://` 链接，可在应用中通过 **服务器 → 从剪贴板导入**。可通过环境变量 `PORT=443` 或 `METHOD=chacha20-ietf-poly1305` 修改默认值。重复运行会保留原有密码。
 
 **手动方式：**
 

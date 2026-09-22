@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# SecureGateway VPS setup — Shadowsocks (AEAD) server for Debian 11/12 and Ubuntu.
-# Installs shadowsocks-libev from the distro repository and configures it so the
-# SecureGateway Windows client can import it with one click.
+# SecureGateway VPS setup — Shadowsocks (AEAD) server for any x86_64/aarch64 Linux
+# with systemd (Debian 11/12, Ubuntu 20.04+, ...).
+#
+# Installs shadowsocks-rust as a static binary from GitHub — no distro packages, so it
+# works on end-of-life releases (e.g. Debian 11 after Aug 2026) whose apt repos have
+# gone away — and configures it so the SecureGateway client can import it in one click.
 #
 # Note: this is Shadowsocks (AEAD), which the client supports — not ShadowsocksR (SSR),
 # an unmaintained fork the client does not speak.
@@ -11,6 +14,7 @@
 #   bash shadowsocks-setup.sh                 # aes-256-gcm on port 8388
 #   PORT=443 bash shadowsocks-setup.sh        # different port
 #   METHOD=chacha20-ietf-poly1305 bash shadowsocks-setup.sh
+#   SS_VERSION=v1.22.0 bash shadowsocks-setup.sh   # pin a release instead of latest
 #
 # Auto-publish to Supabase (server appears in every user's app, no copy/paste):
 #
@@ -23,8 +27,11 @@ set -euo pipefail
 
 PORT="${PORT:-8388}"
 METHOD="${METHOD:-aes-256-gcm}"
-CONF_DIR=/etc/shadowsocks-libev
+SS_VERSION="${SS_VERSION:-}"
+CONF_DIR=/etc/shadowsocks
 CONF="$CONF_DIR/config.json"
+BIN=/usr/local/bin/ssserver
+UNIT=/etc/systemd/system/shadowsocks.service
 NAME="${NAME:-Vultr $(hostname -s 2>/dev/null || echo VPS) (SS)}"
 
 SUPABASE_URL="${SUPABASE_URL:-https://yahzzatmmmdmwalindai.supabase.co}"
@@ -36,32 +43,72 @@ log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || die "run as root (use: sudo bash $0)"
-command -v apt-get >/dev/null || die "this script supports Debian/Ubuntu only"
+command -v systemctl >/dev/null || die "systemd is required"
+command -v curl >/dev/null || die "curl is required (apt-get install curl)"
 
 case "$METHOD" in
     aes-128-gcm|aes-256-gcm|chacha20-ietf-poly1305|xchacha20-ietf-poly1305) ;;
     *) die "METHOD must be one of: aes-128-gcm, aes-256-gcm, chacha20-ietf-poly1305, xchacha20-ietf-poly1305" ;;
 esac
 
-export DEBIAN_FRONTEND=noninteractive
+case "$(uname -m)" in
+    x86_64|amd64)   ARCH=x86_64 ;;
+    aarch64|arm64)  ARCH=aarch64 ;;
+    *) die "unsupported CPU architecture: $(uname -m)" ;;
+esac
 
-# Some Debian 11 cloud images still reference the retired "bullseye/updates" security
-# suite; its pool paths now 404. Point them at bullseye-security before updating.
-if grep -rqs 'bullseye/updates' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null; then
-    log "Fixing retired bullseye/updates security suite in apt sources"
-    sed -i 's#bullseye/updates#bullseye-security#g' /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+# ---- install shadowsocks-rust (static binary, distro-independent) ---------------------
+resolve_latest_version() {
+    # 1) follow the /releases/latest redirect; 2) GitHub API; either yields "vX.Y.Z"
+    local v
+    v=$(curl -fsSI --max-time 30 https://github.com/shadowsocks/shadowsocks-rust/releases/latest 2>/dev/null \
+        | tr -d '\r' | awk 'tolower($1)=="location:" {print $2}' | sed -E 's#.*/tag/##')
+    if [ -z "$v" ]; then
+        v=$(curl -fsS --max-time 30 https://api.github.com/repos/shadowsocks/shadowsocks-rust/releases/latest 2>/dev/null \
+            | grep -o '"tag_name": *"[^"]*"' | head -1 | sed -E 's/.*"(v[^"]+)"$/\1/')
+    fi
+    printf '%s' "$v"
+}
+
+if [ -z "$SS_VERSION" ]; then
+    log "Looking up latest shadowsocks-rust release"
+    SS_VERSION=$(resolve_latest_version)
+    [ -n "$SS_VERSION" ] || die "could not determine the latest release — set SS_VERSION=vX.Y.Z and re-run"
 fi
+case "$SS_VERSION" in v*) ;; *) SS_VERSION="v$SS_VERSION" ;; esac
 
-log "Installing shadowsocks-libev"
-apt-get update -qq || die "apt-get update failed — check /etc/apt/sources.list"
-apt-get install -y -qq shadowsocks-libev curl ca-certificates >/dev/null \
-    || die "package install failed (see errors above)"
-command -v ss-server >/dev/null || die "shadowsocks-libev did not install"
+if [ -x "$BIN" ] && "$BIN" --version 2>/dev/null | grep -q "${SS_VERSION#v}"; then
+    log "shadowsocks-rust $SS_VERSION already installed"
+else
+    ASSET="shadowsocks-${SS_VERSION}.${ARCH}-unknown-linux-musl.tar.xz"
+    URL="https://github.com/shadowsocks/shadowsocks-rust/releases/download/${SS_VERSION}/${ASSET}"
+    TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+
+    log "Downloading $ASSET"
+    curl -fsSL --max-time 300 -o "$TMP/$ASSET" "$URL" || die "download failed: $URL"
+
+    if command -v xz >/dev/null; then
+        tar -xJf "$TMP/$ASSET" -C "$TMP" || die "archive extraction failed"
+    elif command -v python3 >/dev/null; then
+        python3 -c "import tarfile,sys; tarfile.open(sys.argv[1]).extractall(sys.argv[2])" "$TMP/$ASSET" "$TMP" \
+            || die "archive extraction failed"
+    else
+        die "need either xz-utils or python3 to extract the archive"
+    fi
+
+    [ -f "$TMP/ssserver" ] || die "ssserver not found in archive"
+    install -m 0755 "$TMP/ssserver" "$BIN"
+    log "Installed $("$BIN" --version 2>/dev/null || echo "ssserver $SS_VERSION") to $BIN"
+fi
 
 # ---- password (reuse if already configured) ------------------------------------------
 if [ -f "$CONF" ] && grep -q '"password"' "$CONF"; then
     PASSWORD=$(grep -o '"password": *"[^"]*"' "$CONF" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
     log "Keeping existing password"
+elif [ -f /etc/shadowsocks-libev/config.json ] && grep -q '"password"' /etc/shadowsocks-libev/config.json; then
+    PASSWORD=$(grep -o '"password": *"[^"]*"' /etc/shadowsocks-libev/config.json | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+    log "Reusing password from an earlier shadowsocks-libev install"
+    systemctl disable --now shadowsocks-libev >/dev/null 2>&1 || true
 else
     PASSWORD=$(openssl rand -base64 24 2>/dev/null || head -c 24 /dev/urandom | base64)
     log "Generated new password"
@@ -72,19 +119,45 @@ log "Writing $CONF"
 mkdir -p "$CONF_DIR"
 cat > "$CONF" <<JSON
 {
-    "server": ["0.0.0.0", "::"],
+    "server": "::",
     "server_port": $PORT,
     "password": "$PASSWORD",
     "method": "$METHOD",
-    "timeout": 300,
-    "fast_open": false,
     "mode": "tcp_and_udp",
-    "nameserver": "1.1.1.1"
+    "timeout": 300,
+    "ipv6_only": false
 }
 JSON
 chmod 600 "$CONF"
 
-# Debian's unit runs ss-server as user "nobody" via the config above.
+# ---- service ----------------------------------------------------------------------------
+log "Writing $UNIT"
+cat > "$UNIT" <<EOF
+[Unit]
+Description=Shadowsocks server (shadowsocks-rust) for SecureGateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=$BIN -c $CONF
+Restart=always
+RestartSec=3
+# Binding a port <1024 (e.g. 443) needs this even as an unprivileged service.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+EOF
+# DynamicUser can't read a root-only file; the service needs the config but nothing else.
+chmod 644 "$CONF"
+
 # BBR noticeably helps throughput on long-distance links; harmless if unavailable.
 if ! sysctl -n net.ipv4.tcp_congestion_control 2>/dev/null | grep -q bbr; then
     printf 'net.core.default_qdisc=fq\nnet.ipv4.tcp_congestion_control=bbr\n' > /etc/sysctl.d/90-bbr.conf
@@ -99,12 +172,13 @@ if command -v ufw >/dev/null && ufw status | grep -q '^Status: active'; then
 fi
 
 # ---- start ------------------------------------------------------------------------------
-log "Starting shadowsocks-libev"
-systemctl enable shadowsocks-libev >/dev/null 2>&1
-systemctl restart shadowsocks-libev
+log "Starting shadowsocks"
+systemctl daemon-reload
+systemctl enable shadowsocks >/dev/null 2>&1
+systemctl restart shadowsocks
 sleep 1
-systemctl is-active --quiet shadowsocks-libev \
-    || { journalctl -u shadowsocks-libev -n 20 --no-pager; die "shadowsocks-libev failed to start"; }
+systemctl is-active --quiet shadowsocks \
+    || { journalctl -u shadowsocks -n 20 --no-pager; die "shadowsocks failed to start"; }
 
 # ---- client details ---------------------------------------------------------------------
 PUBLIC_IP=$(curl -fsS -4 https://api.ipify.org 2>/dev/null || curl -fsS -4 https://ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
@@ -214,6 +288,6 @@ fi
 
 cat <<EOF
 
-  Server log: journalctl -u shadowsocks-libev -f
+  Server log: journalctl -u shadowsocks -f
 ========================================================================
 EOF
