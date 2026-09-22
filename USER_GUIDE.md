@@ -34,9 +34,17 @@
 
 ## 2. Installation
 
-### Option A: Run the Pre-Built Executable
+### Option A: Install from the Setup Program (recommended)
 
-1. Extract the release package to any folder (e.g., `C:\Program Files\SecureGateway\`). Keep `SecureGateway.exe` and the `v2ray-core` folder together — the engine is bundled, nothing else needs to be installed.
+1. Run `SecureGateway-Setup-<version>.exe` from the download your administrator sent you.
+2. Accept the defaults. If you don't have administrator rights on the PC, choose **Install for me only** when asked.
+3. Launch **SecureGateway** from the Start menu (or the desktop icon, if you ticked it).
+
+Upgrades: run the newer setup file over the existing install; your servers and settings are kept. Uninstall from Windows Settings → Apps like any other program.
+
+### Option A2: Run the Portable Zip
+
+1. Extract the zip to any folder (e.g., `C:\Program Files\SecureGateway\`). Keep `SecureGateway.exe` and the `v2ray-core` folder together — the engine is bundled, nothing else needs to be installed.
 2. Double-click `SecureGateway.exe` to launch.
 
 **If Windows refuses to start it:**
@@ -567,9 +575,17 @@ It installs the latest `shadowsocks-rust` server as a static binary from GitHub 
 
 ## 2. 安装
 
-### 方式 A：运行预编译程序
+### 方式 A：通过安装程序安装（推荐）
 
-1. 将发布包解压到任意文件夹（如 `C:\Program Files\SecureGateway\`）。请保持 `SecureGateway.exe` 与 `v2ray-core` 文件夹在同一目录——引擎已内置，无需额外安装任何软件。
+1. 运行管理员发给您的 `SecureGateway-Setup-<版本号>.exe`。
+2. 按默认选项安装。如果您在该电脑上没有管理员权限，在询问时选择**仅为我安装**。
+3. 从开始菜单（或勾选后生成的桌面图标）启动 **SecureGateway**。
+
+升级：直接运行新版本的安装程序覆盖安装，服务器列表和设置会保留。卸载：像其他程序一样在 Windows 设置 → 应用 中卸载。
+
+### 方式 A2：运行免安装压缩包
+
+1. 将压缩包解压到任意文件夹（如 `C:\Program Files\SecureGateway\`）。请保持 `SecureGateway.exe` 与 `v2ray-core` 文件夹在同一目录——引擎已内置，无需额外安装任何软件。
 2. 双击 `SecureGateway.exe` 启动。
 
 **如果 Windows 拒绝启动：**

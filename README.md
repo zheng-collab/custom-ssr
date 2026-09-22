@@ -161,6 +161,23 @@ Or run the published executable from `build/publish/SecureGateway.exe`.
 
 Copy a `vmess://` or `ss://` share link to your clipboard, then click **Import from Clipboard** in the Servers tab.
 
+## Distributing to Users
+
+Build the packages (both imply `-Publish`):
+
+```powershell
+.\scripts\build.ps1 -Installer          # build\SecureGateway-Setup-<version>.exe   (needs Inno Setup 6)
+.\scripts\build.ps1 -Zip                # build\SecureGateway-<version>-win-x64.zip (no installer needed)
+.\scripts\build.ps1 -Installer -Zip -SignCert C:\certs\company.pfx   # signed, for Smart App Control
+```
+
+- **Installer** (recommended for staff): Start menu entry, optional desktop icon, in-place upgrades, clean uninstall. Install Inno Setup once with `winget install JRSoftware.InnoSetup`.
+- **Zip**: extract anywhere and run `SecureGateway.exe`; keep the `v2ray-core` folder next to it.
+
+Publish either file as a **GitHub Release** (repo → Releases → Draft a new release → attach the file) to get a permanent download link. Windows 11 PCs with Smart App Control enabled only run signed builds; see the *Prerequisites* note on code signing.
+
+To ship a new version: bump `<Version>` in `src/SecureGateway/SecureGateway.csproj`, rebuild, upload. The installer upgrades an existing install in place; users keep their settings.
+
 ## Project Structure
 
 ```
@@ -168,6 +185,9 @@ custom-ssr/
 ├── SecureGateway.sln
 ├── scripts/
 │   ├── build.ps1              # Build script
+├── installer/
+│   └── SecureGateway.iss      # Inno Setup definition (build.ps1 -Installer)
+├── scripts/
 │   ├── deploy-server.ps1      # Run server-setup.sh on a VPS from Windows (one SSH session)
 │   ├── server-setup.sh        # One-command V2Ray server install for the VPS
 │   ├── shadowsocks-setup.sh   # One-command Shadowsocks (AEAD) server install (Debian/Ubuntu)
