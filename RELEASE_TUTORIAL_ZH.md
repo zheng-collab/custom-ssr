@@ -179,6 +179,8 @@ Windows 安装程序里显示的版本、macOS 的 `Info.plist`、Release 标题
 |------|------|------|
 | `release` 任务失败，提示 `already exists` | 同一个标签已经发布过 | 现在的流程已能自动把文件补到已有发布上；若仍失败，把日志发给我 |
 | `macos` 任务在 "Downloading v2ray-core" 失败 | GitHub 下载临时故障 | 点 Re-run failed jobs 重试 |
+| 日志里出现 `Failed to CreateArtifact: … Request timeout` | 编译已成功，是 GitHub 自己的文件存储服务临时超时 | 流程会自动等待 60 秒后重传一次；若仍失败，点 Re-run failed jobs |
+| 日志里出现 `Node 20 is being deprecated` 或 `punycode module is deprecated` | 仅为提示信息，不是错误 | 无需处理 |
 | 所有任务都没启动 | 仓库设置里关闭了 Actions | 仓库 **Settings → Actions → General**，选择 **Allow all actions and reusable workflows** |
 | `release` 任务提示权限不足 | 仓库禁止了工作流写入 | **Settings → Actions → General → Workflow permissions**，选择 **Read and write permissions** 并保存 |
 

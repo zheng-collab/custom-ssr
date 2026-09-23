@@ -36,6 +36,7 @@ jobs:
           name: ui-screenshots
           path: ${{ runner.temp }}/smoke/*.png
           if-no-files-found: warn
+        continue-on-error: true
 
   windows:
     name: Windows installer + zip
@@ -50,13 +51,33 @@ jobs:
       - name: Build, publish, package
         shell: pwsh
         run: .\scripts\build.ps1 -Installer -Zip
-      - uses: actions/upload-artifact@v4
+      # GitHub's artifact service occasionally times out (CreateArtifact request timeout);
+      # a second attempt after a pause almost always succeeds. compression-level 0: the
+      # files are already compressed, so this only wastes time.
+      - id: upload
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: windows
           path: |
             build/SecureGateway-Setup.exe
             build/SecureGateway-win-x64.zip
           if-no-files-found: error
+          compression-level: 0
+      - if: steps.upload.outcome == 'failure'
+        name: Retry artifact upload
+        shell: bash
+        run: sleep 60
+      - if: steps.upload.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            build/SecureGateway-Setup.exe
+            build/SecureGateway-win-x64.zip
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: true
 
   macos:
     name: macOS ${{ matrix.arch }} DMG
@@ -71,11 +92,25 @@ jobs:
           dotnet-version: "8.0.x"
       - name: Build .app and .dmg
         run: ./scripts/build-mac.sh --arch ${{ matrix.arch }}
-      - uses: actions/upload-artifact@v4
+      - id: upload
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: macos-${{ matrix.arch }}
           path: build/SecureGateway-macos-${{ matrix.arch }}.dmg
           if-no-files-found: error
+          compression-level: 0
+      - if: steps.upload.outcome == 'failure'
+        name: Retry artifact upload
+        run: sleep 60
+      - if: steps.upload.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}
+          path: build/SecureGateway-macos-${{ matrix.arch }}.dmg
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: true
 
   release:
     name: GitHub Release
