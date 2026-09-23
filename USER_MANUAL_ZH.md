@@ -267,6 +267,28 @@ Windows 11 部分电脑（通常是 2022 年后出厂并全新安装系统的电
 
 ---
 
+## 10.1 手机端（Android / iPhone）
+
+手机上没有 SecureGateway 应用，但可以用标准的手机 VPN 客户端连接同一台服务器，效果相同。手机直接使用服务器凭据连接，**不需要**登录 SecureGateway 账号。
+
+**安装客户端：**
+
+| 手机 | 推荐应用 | 获取方式 |
+|------|----------|----------|
+| Android | **v2rayNG**（免费） | https://github.com/2dust/v2rayNG/releases （下载 `arm64-v8a` 的 apk）或 Google Play |
+| Android | **Shadowsocks**（免费，官方） | https://github.com/shadowsocks/shadowsocks-android/releases |
+| iPhone / iPad | **Shadowrocket**（付费） | App Store，需要非中国大陆区的 Apple ID |
+
+**导入服务器（扫码）：**
+
+1. 在装有 SecureGateway 的电脑上打开 **Servers（服务器）** 标签页，选中服务器，点击 **Share QR（分享二维码）**。屏幕上会显示一个二维码。
+2. 打开手机上的 VPN 应用，点击 **＋** → **扫描二维码**，对准电脑屏幕扫描。
+3. 手机应用中会出现一条服务器，点击它，再点击右下角的连接按钮。Android 首次连接会弹出"是否允许 VPN 连接"，选择**确定**。
+
+也可以在电脑上点击 **Copy link（复制链接）**，把整行 `ss://…` 文字发到手机，在手机应用里选择 **从剪贴板导入**。
+
+> 该链接等同于服务器的钥匙，请只发给公司同事，不要发到公开群或社交平台。
+
 ## 11. 常见问题
 
 | 现象 | 原因与处理 |

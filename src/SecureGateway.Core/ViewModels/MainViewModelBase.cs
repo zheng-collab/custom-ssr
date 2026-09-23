@@ -55,6 +55,8 @@ namespace SecureGateway.UI.ViewModels
         protected abstract Task<bool> EditServerAsync(ServerProfile server);
         protected abstract Task<string> GetClipboardTextAsync();
         protected abstract void ApplyAutoStart(bool enable);
+        /// <summary>Shows the share link and its QR code for phones (v2rayNG, Shadowsocks, Shadowrocket).</summary>
+        protected abstract Task ShowShareLinkAsync(ServerProfile server, string link, byte[] qrPng);
 
         protected MainViewModelBase(ISystemProxyService systemProxy)
         {
@@ -77,6 +79,7 @@ namespace SecureGateway.UI.ViewModels
             TestAllLatencyCommand = new AsyncRelayCommand(TestAllLatencyAsync);
             ClearLogCommand = new RelayCommand(ClearLog);
             ImportFromClipboardCommand = new AsyncRelayCommand(ImportFromClipboardAsync);
+            ShowShareLinkCommand = new AsyncRelayCommand(ShowShareLinkForSelectedAsync, () => SelectedServer != null);
             SyncSharedServersCommand = new AsyncRelayCommand(SyncSharedServersAsync);
             ShareServerCommand = new AsyncRelayCommand(ShareServerAsync, () => SelectedServer != null && !SelectedServer.IsShared);
             UnshareServerCommand = new AsyncRelayCommand(UnshareServerAsync, () => SelectedServer != null && SelectedServer.IsShared);
@@ -181,6 +184,7 @@ namespace SecureGateway.UI.ViewModels
         public ICommand TestAllLatencyCommand { get; }
         public ICommand ClearLogCommand { get; }
         public ICommand ImportFromClipboardCommand { get; }
+        public ICommand ShowShareLinkCommand { get; }
         public ICommand SyncSharedServersCommand { get; }
         public ICommand ShareServerCommand { get; }
         public ICommand UnshareServerCommand { get; }
@@ -190,7 +194,8 @@ namespace SecureGateway.UI.ViewModels
             foreach (var c in new ICommand[]
                      {
                          ConnectCommand, DisconnectCommand, EditServerCommand, DeleteServerCommand,
-                         DuplicateServerCommand, TestLatencyCommand, ShareServerCommand, UnshareServerCommand
+                         DuplicateServerCommand, TestLatencyCommand, ShareServerCommand, UnshareServerCommand,
+                         ShowShareLinkCommand
                      })
             {
                 switch (c)
@@ -503,6 +508,17 @@ namespace SecureGateway.UI.ViewModels
             {
                 await ShowMessageAsync("Import Error", $"Failed to import: {ex.Message}", MessageKind.Error);
             }
+        }
+
+        private async Task ShowShareLinkForSelectedAsync()
+        {
+            var server = SelectedServer;
+            if (server == null) return;
+
+            var link = ShareLinkParser.ToLink(server);
+            byte[] png = null;
+            try { png = QrCode.Png(link); } catch (Exception ex) { Logger.Warning($"QR code failed: {ex.Message}"); }
+            await ShowShareLinkAsync(server, link, png);
         }
 
         // ---- shared servers (Supabase) ----------------------------------------------------

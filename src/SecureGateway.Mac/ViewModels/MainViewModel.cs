@@ -53,5 +53,11 @@ namespace SecureGateway.Mac.ViewModels
         }
 
         protected override void ApplyAutoStart(bool enable) => MacAutoStart.Set(enable);
+
+        protected override async Task ShowShareLinkAsync(ServerProfile server, string link, byte[] qrPng)
+        {
+            var w = new ShareLinkWindow(server, link, qrPng);
+            if (Owner != null) await w.ShowDialog(Owner); else w.Show();
+        }
     }
 }

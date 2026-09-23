@@ -63,6 +63,18 @@ Upgrades: run the newer setup file over the existing install; your servers and s
 
 Everything else in this guide applies unchanged: same login, password reset, shared servers, proxy modes and log tab. "Start with Windows" is "Start at login" on macOS.
 
+### Option A4: Android and iPhone
+
+There is no SecureGateway app for phones; the server works with the standard mobile VPN clients, which use the same server link. The phone connects directly with the server credentials, so mobile users do not sign in with their SecureGateway account.
+
+**Android:** install **v2rayNG** (free, [github.com/2dust/v2rayNG](https://github.com/2dust/v2rayNG/releases), also on Google Play) or **Shadowsocks** ([github.com/shadowsocks/shadowsocks-android](https://github.com/shadowsocks/shadowsocks-android/releases)). **iPhone/iPad:** **Shadowrocket** (App Store, paid, needs an Apple ID outside mainland China) or **Streisand**.
+
+1. On a PC or Mac with SecureGateway: **Servers** → select the server → **Share QR**.
+2. On the phone, in the VPN app: **＋ → Scan QR code**, and scan the screen. (Or copy the link, send it to the phone and use **Import from clipboard**.)
+3. Tap the connect button in the phone app; Android asks once to allow the VPN connection.
+
+The link contains the server's credentials. Share it only with staff; if it leaks, the administrator regenerates the server password (re-run the server script after deleting its config) and everyone imports the new link.
+
 ### Option B: Build from Source
 
 ```powershell
@@ -619,6 +631,18 @@ It installs the latest `shadowsocks-rust` server as a static binary from GitHub 
 4. 关闭窗口后，应用会驻留在**菜单栏**（右上角的盾牌图标）。点击图标可重新打开窗口，或通过其菜单连接、断开或退出。
 
 本手册的其他内容同样适用：登录、密码重置、共享服务器、代理模式和日志页均与 Windows 版一致。Windows 版的"Start with Windows"在 macOS 上对应"Start at login（登录时启动）"。
+
+### 方式 A4：Android 与 iPhone
+
+手机端没有单独的 SecureGateway 应用，但服务器可以直接配合标准的手机 VPN 客户端使用，链接完全相同。手机直接使用服务器凭据连接，因此手机用户无需登录 SecureGateway 账号。
+
+**Android：** 安装 **v2rayNG**（免费，[github.com/2dust/v2rayNG](https://github.com/2dust/v2rayNG/releases)，Google Play 也有）或 **Shadowsocks**（[github.com/shadowsocks/shadowsocks-android](https://github.com/shadowsocks/shadowsocks-android/releases)）。**iPhone/iPad：** **Shadowrocket**（App Store 付费，需要非中国大陆区的 Apple ID）或 **Streisand**。
+
+1. 在装有 SecureGateway 的电脑上：**Servers（服务器）** → 选中服务器 → **Share QR（分享二维码）**。
+2. 在手机的 VPN 应用中：**＋ → 扫描二维码**，对准电脑屏幕扫描。（或复制链接发到手机，使用 **从剪贴板导入**。）
+3. 在手机应用中点击连接；Android 会提示一次是否允许 VPN 连接。
+
+该链接包含服务器凭据，只能分享给公司员工。如有泄露，请管理员重新生成服务器密码（删除服务器配置后重新运行安装脚本），然后所有人重新导入新链接。
 
 ### 方式 B：从源码编译
 

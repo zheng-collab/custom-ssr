@@ -74,6 +74,34 @@ namespace SecureGateway.Mac.Smoke
                 Pump();
             });
 
+            Check("Share link + QR", () =>
+            {
+                var ss = new ServerProfile { Name = "Vultr (SS)", Address = "203.0.113.5", Port = 8388,
+                    Protocol = ProxyProtocol.Shadowsocks, SsPassword = "Ab+/cd12==", SsEncryption = ShadowsocksEncryption.Aes256Gcm };
+                var ssLink = SecureGateway.Utils.ShareLinkParser.ToLink(ss);
+                var back = SecureGateway.Utils.ShareLinkParser.Parse(ssLink);
+                Expect(back != null && back.Address == ss.Address && back.Port == ss.Port && back.SsPassword == ss.SsPassword
+                       && back.SsEncryption == ss.SsEncryption && back.Name == ss.Name, "ss:// link round-trips (" + ssLink[..20] + "…)");
+
+                var vm = new ServerProfile { Name = "Tokyo", Address = "vpn.example.com", Port = 443, Protocol = ProxyProtocol.V2Ray,
+                    V2RayUserId = "5e2f0b5c-1234-4a1b-9c2d-abcdef012345", V2RayTransport = V2RayTransport.WebSocket,
+                    V2RayPath = "/ws", V2RayTls = true, V2RaySni = "vpn.example.com" };
+                var vmLink = SecureGateway.Utils.ShareLinkParser.ToLink(vm);
+                var back2 = SecureGateway.Utils.ShareLinkParser.Parse(vmLink);
+                Expect(back2 != null && back2.V2RayUserId == vm.V2RayUserId && back2.V2RayTransport == V2RayTransport.WebSocket
+                       && back2.V2RayTls && back2.V2RayPath == "/ws" && back2.Port == 443, "vmess:// link round-trips");
+
+                var png = SecureGateway.Utils.QrCode.Png(ssLink);
+                Expect(png != null && png.Length > 500 && png[0] == 0x89 && png[1] == (byte)'P', $"QR renders to PNG ({png?.Length ?? 0} bytes)");
+
+                var w = new ShareLinkWindow(ss, ssLink, png);
+                w.Show();
+                Pump();
+                Snapshot(w, Path.Combine(outDir, "share-qr.png"));
+                w.Close();
+                Pump();
+            });
+
             Check("Bootstrap logic (no network needed)", () =>
             {
                 var t1 = SecureGateway.Services.BootstrapConnector.TryConnectAsync("not a link", auth).GetAwaiter().GetResult();

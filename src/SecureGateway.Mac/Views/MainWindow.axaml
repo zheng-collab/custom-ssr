@@ -109,6 +109,8 @@
             <Button Content="Delete" Classes="danger" Command="{Binding DeleteServerCommand}" Margin="0,0,8,6"/>
             <Button Content="Import from Clipboard" Command="{Binding ImportFromClipboardCommand}" Margin="0,0,8,6"/>
             <Button Content="Test All" Command="{Binding TestAllLatencyCommand}" Margin="0,0,8,6"/>
+            <Button Content="Share QR" Command="{Binding ShowShareLinkCommand}" Margin="0,0,8,6"
+                    ToolTip.Tip="Show a QR code / link for phone VPN apps"/>
             <Border Background="{StaticResource Surface1}" Width="1" Height="24" Margin="4,0,12,6" VerticalAlignment="Center"/>
             <Button Content="Sync Shared" Classes="accent" Command="{Binding SyncSharedServersCommand}" Margin="0,0,8,6"/>
             <Button Content="Share" Command="{Binding ShareServerCommand}" Margin="0,0,8,6"/>

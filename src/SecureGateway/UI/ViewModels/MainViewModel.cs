@@ -51,5 +51,11 @@ namespace SecureGateway.UI.ViewModels
         }
 
         protected override void ApplyAutoStart(bool enable) => AutoStartHelper.SetAutoStart(enable);
+
+        protected override Task ShowShareLinkAsync(ServerProfile server, string link, byte[] qrPng)
+        {
+            new Views.ShareLinkWindow(server, link, qrPng) { Owner = Application.Current.MainWindow }.ShowDialog();
+            return Task.CompletedTask;
+        }
     }
 }

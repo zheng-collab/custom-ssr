@@ -15,6 +15,55 @@ namespace SecureGateway.Utils
                 || l.StartsWith("ss://", StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>
+        /// Builds the share link for a profile: SIP002 ss:// for Shadowsocks, vmess:// (v2rayN
+        /// JSON format) for V2Ray. Understood by this app, v2rayNG, Shadowsocks for Android/iOS,
+        /// Shadowrocket, etc.
+        /// </summary>
+        public static string ToLink(ServerProfile p)
+        {
+            if (p == null) return "";
+
+            if (p.Protocol == ProxyProtocol.Shadowsocks)
+            {
+                var method = p.SsEncryption switch
+                {
+                    ShadowsocksEncryption.Aes128Gcm => "aes-128-gcm",
+                    ShadowsocksEncryption.ChaCha20IetfPoly1305 => "chacha20-ietf-poly1305",
+                    ShadowsocksEncryption.XChaCha20IetfPoly1305 => "xchacha20-ietf-poly1305",
+                    _ => "aes-256-gcm"
+                };
+                var userInfo = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{method}:{p.SsPassword}"));
+                var host = p.Address.Contains(':') ? $"[{p.Address}]" : p.Address;
+                return $"ss://{userInfo}@{host}:{p.Port}#{Uri.EscapeDataString(p.Name ?? "")}";
+            }
+
+            var json = new JObject
+            {
+                ["v"] = "2",
+                ["ps"] = p.Name ?? "",
+                ["add"] = p.Address,
+                ["port"] = p.Port.ToString(),
+                ["id"] = p.V2RayUserId,
+                ["aid"] = p.V2RayAlterId.ToString(),
+                ["scy"] = string.IsNullOrEmpty(p.V2RaySecurity) ? "auto" : p.V2RaySecurity,
+                ["net"] = p.V2RayTransport switch
+                {
+                    V2RayTransport.WebSocket => "ws",
+                    V2RayTransport.HTTP2 => "h2",
+                    V2RayTransport.GRPC => "grpc",
+                    V2RayTransport.QUIC => "quic",
+                    _ => "tcp"
+                },
+                ["type"] = "none",
+                ["host"] = p.V2RayHost ?? "",
+                ["path"] = p.V2RayPath ?? "",
+                ["tls"] = p.V2RayTls ? "tls" : "",
+                ["sni"] = p.V2RaySni ?? ""
+            };
+            return "vmess://" + Convert.ToBase64String(Encoding.UTF8.GetBytes(json.ToString(Newtonsoft.Json.Formatting.None)));
+        }
+
         /// <summary>Returns null if the link is not a supported/valid share link.</summary>
         public static ServerProfile Parse(string link)
         {
