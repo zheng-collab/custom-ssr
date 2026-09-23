@@ -46,7 +46,11 @@ namespace SecureGateway.Services
             ServerProfile runtime;
             try
             {
-                runtime = ResolveLocalPorts(server);
+                runtime = WithFreeLocalPorts(server, out var changed);
+                if (changed)
+                    _logger.Warning(
+                        $"Local port(s) {server.LocalSocksPort}/{server.LocalHttpPort} are in use — " +
+                        $"using {runtime.LocalSocksPort}/{runtime.LocalHttpPort} instead.");
             }
             catch (Exception ex)
             {
@@ -70,15 +74,7 @@ namespace SecureGateway.Services
                     return;
                 }
 
-                _systemProxy.ConfigureForMode(_configManager.Config.ProxyMode, runtime.LocalHttpPort, runtime.LocalSocksPort);
-
-                Stats = new ConnectionStats { ConnectedSince = DateTime.UtcNow };
-                _statsTimer = new Timer(UpdateStats, runtime, 5000, 15000);
-
-                if (!server.IsShared)
-                    _configManager.SetActiveServer(server.Id);
-
-                _logger.Info($"Connected to {server.Name} successfully.");
+                OnTunnelUp(server, runtime);
             }
             catch (Exception ex)
             {
@@ -87,6 +83,45 @@ namespace SecureGateway.Services
                 StatusChanged?.Invoke(this,
                     new EngineStatusChangedEventArgs(EngineStatus.Error, $"Connection failed: {ex.Message}"));
             }
+        }
+
+        /// <summary>
+        /// Takes over an engine that was started before login (BootstrapConnector), so the
+        /// tunnel stays up without interruption while the main window becomes its owner.
+        /// </summary>
+        public async Task AdoptRunningEngineAsync(IProxyEngine engine, ServerProfile runtime, ServerProfile original)
+        {
+            if (engine == null || engine.Status != EngineStatus.Running) return;
+
+            if (_currentEngine != null)
+                await DisconnectAsync();
+
+            _logger.Info($"Adopting tunnel to {original.Name} started during sign-in.");
+            _activeServer = runtime;
+            _currentEngine = engine;
+            _currentEngine.StatusChanged += OnEngineStatusChanged;
+            _currentEngine.LogReceived += OnEngineLogReceived;
+
+            OnTunnelUp(original, runtime);
+            StatusChanged?.Invoke(this, new EngineStatusChangedEventArgs(EngineStatus.Running,
+                $"Connected to {original.Address}:{original.Port}"));
+        }
+
+        private void OnTunnelUp(ServerProfile original, ServerProfile runtime)
+        {
+            _systemProxy.ConfigureForMode(_configManager.Config.ProxyMode, runtime.LocalHttpPort, runtime.LocalSocksPort);
+
+            // Route the app's own Supabase traffic through the tunnel too (needed on networks
+            // that block the login server).
+            HttpClients.UseProxy(runtime.LocalHttpPort);
+
+            Stats = new ConnectionStats { ConnectedSince = DateTime.UtcNow };
+            _statsTimer = new Timer(UpdateStats, runtime, 5000, 15000);
+
+            if (!original.IsShared)
+                _configManager.SetActiveServer(original.Id);
+
+            _logger.Info($"Connected to {original.Name} successfully.");
         }
 
         public async Task DisconnectAsync()
@@ -110,6 +145,7 @@ namespace SecureGateway.Services
             _activeServer = null;
 
             _systemProxy.DisableProxy();
+            HttpClients.UseProxy(null);
 
             Stats = new ConnectionStats();
             StatsUpdated?.Invoke(this, Stats);
@@ -148,20 +184,17 @@ namespace SecureGateway.Services
         }
 
         /// <summary>
-        /// Returns a profile whose local ports are guaranteed free. Multiple instances
-        /// (other Windows users, other proxy tools) may already hold the defaults.
+        /// Returns a copy of the profile whose local ports are guaranteed free (other proxy
+        /// tools, or another user's instance on the same PC, may hold the defaults). Returns
+        /// the same instance when nothing had to change.
         /// </summary>
-        private ServerProfile ResolveLocalPorts(ServerProfile server)
+        public static ServerProfile WithFreeLocalPorts(ServerProfile server, out bool changed)
         {
             var socks = PortHelper.FindFreePort(server.LocalSocksPort);
             var http = PortHelper.FindFreePort(server.LocalHttpPort, socks);
 
-            if (socks == server.LocalSocksPort && http == server.LocalHttpPort)
-                return server;
-
-            _logger.Warning(
-                $"Local port(s) {server.LocalSocksPort}/{server.LocalHttpPort} are in use — " +
-                $"using {socks}/{http} instead.");
+            changed = socks != server.LocalSocksPort || http != server.LocalHttpPort;
+            if (!changed) return server;
 
             var runtime = server.Clone();
             runtime.Id = server.Id;
@@ -187,10 +220,13 @@ namespace SecureGateway.Services
             }
 
             _activeServer = null;
+            HttpClients.UseProxy(null);
         }
 
         private void OnEngineStatusChanged(object sender, EngineStatusChangedEventArgs e)
         {
+            if (e.Status == EngineStatus.Error)
+                HttpClients.UseProxy(null);
             StatusChanged?.Invoke(this, e);
         }
 
@@ -229,6 +265,7 @@ namespace SecureGateway.Services
             _currentEngine?.Dispose();
             _currentEngine = null;
             _systemProxy.DisableProxy();
+            HttpClients.UseProxy(null);
         }
     }
 }

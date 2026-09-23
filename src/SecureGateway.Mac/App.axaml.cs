@@ -69,9 +69,12 @@ namespace SecureGateway.Mac
                 return;
             }
 
-            if (!_authService.IsAuthenticated)
+            // HasOfflineSession: valid saved sign-in but the login server is unreachable right now
+            // (restricted network). Let the user in; it is verified once the tunnel is up.
+            LoginWindow login = null;
+            if (!_authService.IsAuthenticated && !_authService.HasOfflineSession)
             {
-                var login = new LoginWindow(_authService);
+                login = new LoginWindow(_authService);
                 _desktop.MainWindow = login;
                 login.Show();
                 if (!await login.WaitForResultAsync())
@@ -87,6 +90,10 @@ namespace SecureGateway.Mac
 
             if (!startMinimized || !_mainWindow.ViewModel.MinimizeToTray)
                 _mainWindow.Show();
+
+            // A tunnel started on the login screen ("connect first") is handed over, not restarted.
+            if (login?.Bootstrap != null)
+                await _mainWindow.ViewModel.AdoptBootstrapAsync(login.Bootstrap);
         }
 
         // ---- menu bar (tray) icon -------------------------------------------------------------
@@ -160,6 +167,8 @@ namespace SecureGateway.Mac
             {
                 _mainWindow.ViewModel.SetAuthService(_authService);
                 ShowMain();
+                if (login.Bootstrap != null)
+                    await _mainWindow.ViewModel.AdoptBootstrapAsync(login.Bootstrap);
             }
             else
             {

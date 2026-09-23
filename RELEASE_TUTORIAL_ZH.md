@@ -27,9 +27,9 @@
 
 | 任务 | 运行在 | 产出 |
 |------|--------|------|
-| `windows` | GitHub 的 Windows 服务器 | `SecureGateway-Setup-<版本>.exe`、`SecureGateway-<版本>-win-x64.zip` |
-| `macos arm64` | GitHub 的 **Mac** 服务器 | `SecureGateway-<版本>-macos-arm64.dmg`（Apple 芯片 M1/M2/M3/M4） |
-| `macos x64` | GitHub 的 **Mac** 服务器 | `SecureGateway-<版本>-macos-x64.dmg`（Intel 芯片） |
+| `windows` | GitHub 的 Windows 服务器 | `SecureGateway-Setup.exe`、`SecureGateway-win-x64.zip` |
+| `macos arm64` | GitHub 的 **Mac** 服务器 | `SecureGateway-macos-arm64.dmg`（Apple 芯片 M1/M2/M3/M4） |
+| `macos x64` | GitHub 的 **Mac** 服务器 | `SecureGateway-macos-x64.dmg`（Intel 芯片） |
 | `test-ui` | GitHub 的 Linux 服务器 | 自动渲染 macOS 版每个界面并截图，用于检查 |
 
 当您给代码打上一个**版本标签**（例如 `v1.0.0`）时，第四个任务 `release` 会把上面所有文件汇总到仓库的 **Releases（发布）** 页面，形成一个固定的下载链接。
@@ -128,13 +128,22 @@ git push origin :refs/tags/v1.0.0
 
 （`latest` 永远指向最新版本，以后更新不需要重新发链接。）
 
+安装文件名**不包含版本号**，因此每个文件也有固定的直接下载地址，可以放进公司内网页面或邮件模板，永远有效：
+
+| 文件 | 直接下载地址 |
+|------|--------------|
+| Windows 安装程序 | https://github.com/zheng-collab/custom-ssr/releases/latest/download/SecureGateway-Setup.exe |
+| Windows 免安装包 | https://github.com/zheng-collab/custom-ssr/releases/latest/download/SecureGateway-win-x64.zip |
+| Mac（Apple 芯片） | https://github.com/zheng-collab/custom-ssr/releases/latest/download/SecureGateway-macos-arm64.dmg |
+| Mac（Intel 芯片） | https://github.com/zheng-collab/custom-ssr/releases/latest/download/SecureGateway-macos-x64.dmg |
+
 告诉员工按电脑类型选择文件：
 
 | 电脑 | 下载文件 | 安装说明所在文档 |
 |------|----------|------------------|
-| Windows 10 / 11 | `SecureGateway-Setup-<版本>.exe` | 《SecureGateway 用户手册》（USER_MANUAL_ZH.pdf）第 3、4 节 |
-| Mac（Apple 芯片：M1/M2/M3/M4） | `SecureGateway-<版本>-macos-arm64.dmg` | USER_GUIDE.md 中的"方式 A3：macOS" |
-| Mac（Intel 芯片，2020 年及以前） | `SecureGateway-<版本>-macos-x64.dmg` | 同上 |
+| Windows 10 / 11 | `SecureGateway-Setup.exe` | 《SecureGateway 用户手册》（USER_MANUAL_ZH.pdf）第 3、4 节 |
+| Mac（Apple 芯片：M1/M2/M3/M4） | `SecureGateway-macos-arm64.dmg` | USER_GUIDE.md 中的"方式 A3：macOS" |
+| Mac（Intel 芯片，2020 年及以前） | `SecureGateway-macos-x64.dmg` | 同上 |
 
 Mac 用户不确定芯片类型时：点击屏幕左上角  → **关于本机**，"芯片"一行写 Apple 即选 arm64，写 Intel 即选 x64。
 
@@ -152,7 +161,7 @@ Mac 用户不确定芯片类型时：点击屏幕左上角  → **关于本机**
 4. 点击 **Commit changes（提交更改）**，直接提交到当前分支。
 5. 按方法一发布，标签填 **`v1.0.1`**（标签要和版本号一致，前面加 `v`）。
 
-安装包文件名、Windows 安装程序里的版本、macOS 的 `Info.plist` 都会自动使用这个号码。员工在旧版本上直接运行新安装包即可升级，设置会保留。
+Windows 安装程序里显示的版本、macOS 的 `Info.plist`、Release 标题都会自动使用这个号码。安装文件名本身**不带版本号**（例如始终叫 `SecureGateway-Setup.exe`），这样固定下载地址不会变；要区分版本，看 Release 页面的标签或程序"设置"页中的版本号。员工在旧版本上直接运行新安装包即可升级，设置会保留。
 
 ---
 

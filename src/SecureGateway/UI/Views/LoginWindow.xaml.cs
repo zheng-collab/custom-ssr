@@ -81,6 +81,66 @@ namespace SecureGateway.UI.Views
             UpdateLockoutUI();
         }
 
+        /// <summary>Tunnel started with "connect first", to be adopted by the main window after sign-in.</summary>
+        public BootstrapConnector Bootstrap { get; private set; }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            base.OnClosed(e);
+            StopCountdownTimer();
+            if (!IsAuthenticated && Bootstrap != null)
+            {
+                var b = Bootstrap;
+                Bootstrap = null;
+                _ = b.AbandonAsync();
+            }
+        }
+
+        private void OnNetworkHelpClick(object sender, MouseButtonEventArgs e)
+        {
+            PanelBootstrap.Visibility = PanelBootstrap.Visibility == Visibility.Visible
+                ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        private async void OnBootstrapClick(object sender, RoutedEventArgs e)
+        {
+            if (Bootstrap != null)
+            {
+                await Bootstrap.AbandonAsync();
+                Bootstrap = null;
+            }
+
+            SetLoading(true, "Connecting through server...");
+            TxtBootstrapStatus.Text = "";
+            var (connector, error) = await BootstrapConnector.TryConnectAsync(
+                TxtServerLink.Text, _authService,
+                msg => Dispatcher.Invoke(() => TxtBootstrapStatus.Text = msg));
+            SetLoading(false);
+
+            if (connector == null)
+            {
+                TxtBootstrapStatus.Text = "";
+                ShowError(error);
+                return;
+            }
+
+            Bootstrap = connector;
+            TxtBootstrapStatus.Text = $"Tunnel up via {connector.Original.Name}. Signing in through it...";
+
+            if (_authService.HasOfflineSession && await _authService.EnsureSessionAsync())
+            {
+                IsAuthenticated = true;
+                DialogResult = true;
+                Close();
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(TxtEmail.Text) && !string.IsNullOrEmpty(GetPassword()))
+                OnSubmitClick(sender, e);
+            else
+                ShowInfo("Connected through the server. Enter your e-mail and password to sign in.");
+        }
+
         private void OnForgotPasswordClick(object sender, MouseButtonEventArgs e)
         {
             if (AuthService.UsesWebPasswordReset)
@@ -323,6 +383,13 @@ namespace SecureGateway.UI.Views
                     Close();
                 }
             }
+            else if (result.IsNetworkError)
+            {
+                // Login server unreachable — not a wrong password, never counts toward the lockout.
+                ShowError(result.Message);
+                PanelBootstrap.Visibility = Visibility.Visible;
+                UpdateLockoutUI();
+            }
             else
             {
                 // Count failed sign-in attempts (not sign-up failures)
@@ -518,6 +585,8 @@ namespace SecureGateway.UI.Views
             BtnApplyReset.IsEnabled = !loading;
             TxtResetCode.IsEnabled = !loading;
             TxtNewPassword.IsEnabled = !loading;
+            BtnBootstrap.IsEnabled = !loading;
+            TxtServerLink.IsEnabled = !loading;
             TxtLoading.Text = message;
             TxtLoading.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
         }

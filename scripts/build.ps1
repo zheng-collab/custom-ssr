@@ -9,8 +9,8 @@
 # "Windows 10/11 SDK" from the Visual Studio Installer).
 #
 # Distribution packages (both imply -Publish):
-#   .\scripts\build.ps1 -Zip          -> build\SecureGateway-<version>-win-x64.zip
-#   .\scripts\build.ps1 -Installer    -> build\SecureGateway-Setup-<version>.exe  (needs Inno Setup 6)
+#   .\scripts\build.ps1 -Zip          -> build\SecureGateway-win-x64.zip
+#   .\scripts\build.ps1 -Installer    -> build\SecureGateway-Setup.exe  (needs Inno Setup 6)
 #   .\scripts\build.ps1 -Zip -Installer -SignCert C:\certs\company.pfx   (signed installer too)
 
 param(
@@ -168,7 +168,7 @@ if ($Publish) {
 
     # ---- distribution packages ----------------------------------------------------------
     if ($Zip) {
-        $zipPath = Join-Path $OutputDir "SecureGateway-$Version-win-x64.zip"
+        $zipPath = Join-Path $OutputDir "SecureGateway-win-x64.zip"
         Write-Host "Creating $zipPath ..." -ForegroundColor Yellow
         if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
         Compress-Archive -Path (Join-Path $PublishDir "*") -DestinationPath $zipPath -CompressionLevel Optimal
@@ -191,7 +191,7 @@ if ($Publish) {
         & $isccPath /Q "/DMyAppVersion=$Version" "/DSourceDir=$PublishDir" "/DOutputDir=$OutputDir" $iss
         if ($LASTEXITCODE -ne 0) { Write-Host "  Installer build FAILED!" -ForegroundColor Red; exit 1 }
 
-        $setupExe = Join-Path $OutputDir "SecureGateway-Setup-$Version.exe"
+        $setupExe = Join-Path $OutputDir "SecureGateway-Setup.exe"
         Invoke-Sign $setupExe
         Write-Host "  Installer: $setupExe  ($([math]::Round((Get-Item $setupExe).Length / 1MB)) MB)" -ForegroundColor Green
     }

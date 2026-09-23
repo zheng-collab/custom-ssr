@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -7,12 +8,13 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using SecureGateway.Models;
+using SecureGateway.Platform;
 
 namespace SecureGateway.Services
 {
     public class SharedServerService
     {
-        private static readonly HttpClient Http = new();
+        private static readonly string CacheFile = Path.Combine(AppPaths.DataDir, "shared_servers_cache.json");
 
         private readonly string _supabaseUrl;
         private readonly string _supabaseAnonKey;
@@ -25,32 +27,38 @@ namespace SecureGateway.Services
             _getAccessToken = getAccessToken;
         }
 
+        /// <summary>
+        /// Fetches all enabled shared servers. Returns null when the request failed (offline,
+        /// blocked, not authorised) so callers can fall back to LoadCache(); on success the
+        /// result is also written to the cache for the next offline start.
+        /// </summary>
         public async Task<List<ServerProfile>> FetchSharedServersAsync()
         {
-            var servers = new List<ServerProfile>();
-
             try
             {
                 var request = CreateRequest(HttpMethod.Get,
                     $"{_supabaseUrl}/rest/v1/shared_servers?enabled=eq.true&select=*");
-                var response = await Http.SendAsync(request);
+                using var response = await HttpClients.Shared.SendAsync(request);
 
                 if (!response.IsSuccessStatusCode)
-                    return servers;
+                    return null;
 
                 var body = await response.Content.ReadAsStringAsync();
-                var rows = JArray.Parse(body);
-
-                foreach (var row in rows)
+                var servers = new List<ServerProfile>();
+                foreach (var row in JArray.Parse(body))
                 {
                     var server = MapRowToServerProfile(row);
                     if (server != null)
                         servers.Add(server);
                 }
-            }
-            catch { }
 
-            return servers;
+                SaveCache(servers);
+                return servers;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         public async Task<bool> PublishServerAsync(ServerProfile server)
@@ -79,12 +87,11 @@ namespace SecureGateway.Services
                     ["enabled"] = true
                 };
 
-                var request = CreateRequest(HttpMethod.Post,
-                    $"{_supabaseUrl}/rest/v1/shared_servers");
+                var request = CreateRequest(HttpMethod.Post, $"{_supabaseUrl}/rest/v1/shared_servers");
                 request.Headers.Add("Prefer", "return=minimal");
                 request.Content = new StringContent(payload.ToString(), Encoding.UTF8, "application/json");
 
-                var response = await Http.SendAsync(request);
+                using var response = await HttpClients.Shared.SendAsync(request);
                 return response.IsSuccessStatusCode;
             }
             catch
@@ -98,14 +105,62 @@ namespace SecureGateway.Services
             try
             {
                 var request = CreateRequest(HttpMethod.Delete,
-                    $"{_supabaseUrl}/rest/v1/shared_servers?id=eq.{sharedId}");
-                var response = await Http.SendAsync(request);
+                    $"{_supabaseUrl}/rest/v1/shared_servers?id=eq.{Uri.EscapeDataString(sharedId)}");
+                using var response = await HttpClients.Shared.SendAsync(request);
                 return response.IsSuccessStatusCode;
             }
             catch
             {
                 return false;
             }
+        }
+
+        // ---- offline cache --------------------------------------------------------------------
+        private class CachedShared
+        {
+            public ServerProfile Profile { get; set; }
+            public string SharedId { get; set; } = "";
+            public string SharedBy { get; set; } = "";
+        }
+
+        private static void SaveCache(List<ServerProfile> servers)
+        {
+            try
+            {
+                Directory.CreateDirectory(AppPaths.DataDir);
+                var items = new List<CachedShared>();
+                foreach (var s in servers)
+                    items.Add(new CachedShared { Profile = s, SharedId = s.SharedId, SharedBy = s.SharedBy });
+                File.WriteAllText(CacheFile, JsonConvert.SerializeObject(items));
+            }
+            catch { }
+        }
+
+        /// <summary>Shared servers from the last successful sync on this device (empty if none).</summary>
+        public static List<ServerProfile> LoadCache()
+        {
+            var result = new List<ServerProfile>();
+            try
+            {
+                if (!File.Exists(CacheFile)) return result;
+                var items = JsonConvert.DeserializeObject<List<CachedShared>>(File.ReadAllText(CacheFile));
+                if (items == null) return result;
+                foreach (var c in items)
+                {
+                    if (c?.Profile == null) continue;
+                    c.Profile.IsShared = true;
+                    c.Profile.SharedId = c.SharedId ?? "";
+                    c.Profile.SharedBy = c.SharedBy ?? "";
+                    result.Add(c.Profile);
+                }
+            }
+            catch { }
+            return result;
+        }
+
+        public static void ClearCache()
+        {
+            try { if (File.Exists(CacheFile)) File.Delete(CacheFile); } catch { }
         }
 
         private HttpRequestMessage CreateRequest(HttpMethod method, string url)
@@ -126,10 +181,8 @@ namespace SecureGateway.Services
             {
                 var protocol = Enum.TryParse<ProxyProtocol>(row["protocol"]?.ToString(), out var p)
                     ? p : ProxyProtocol.V2Ray;
-
                 var transport = Enum.TryParse<V2RayTransport>(row["v2ray_transport"]?.ToString(), out var t)
                     ? t : V2RayTransport.WebSocket;
-
                 var encryption = Enum.TryParse<ShadowsocksEncryption>(row["ss_encryption"]?.ToString(), out var e)
                     ? e : ShadowsocksEncryption.Aes256Gcm;
 

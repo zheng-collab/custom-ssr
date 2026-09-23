@@ -1,8 +1,8 @@
 # Builds installers for every platform and, on a version tag, publishes them as a GitHub Release.
 #
 #   git tag v1.0.1 && git push origin v1.0.1      -> Release "v1.0.1" with:
-#       SecureGateway-Setup-<ver>.exe, SecureGateway-<ver>-win-x64.zip,
-#       SecureGateway-<ver>-macos-arm64.dmg, SecureGateway-<ver>-macos-x64.dmg
+#       SecureGateway-Setup.exe, SecureGateway-win-x64.zip,
+#       SecureGateway-macos-arm64.dmg, SecureGateway-macos-x64.dmg
 #
 # Every push / pull request just builds (and runs the headless UI test) so breakage is caught early.
 # "Run workflow" in the Actions tab builds on demand and keeps the files as workflow artifacts.
@@ -54,8 +54,8 @@ jobs:
         with:
           name: windows
           path: |
-            build/SecureGateway-Setup-*.exe
-            build/SecureGateway-*-win-x64.zip
+            build/SecureGateway-Setup.exe
+            build/SecureGateway-win-x64.zip
           if-no-files-found: error
 
   macos:
@@ -74,7 +74,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: macos-${{ matrix.arch }}
-          path: build/SecureGateway-*-macos-${{ matrix.arch }}.dmg
+          path: build/SecureGateway-macos-${{ matrix.arch }}.dmg
           if-no-files-found: error
 
   release:

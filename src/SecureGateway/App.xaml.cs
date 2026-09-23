@@ -56,9 +56,12 @@ namespace SecureGateway
                 return;
             }
 
-            if (!_authService.IsAuthenticated)
+            // HasOfflineSession: valid saved sign-in but the login server is unreachable right now
+            // (restricted network). Let the user in; it is verified once the tunnel is up.
+            LoginWindow loginWindow = null;
+            if (!_authService.IsAuthenticated && !_authService.HasOfflineSession)
             {
-                var loginWindow = new LoginWindow(_authService);
+                loginWindow = new LoginWindow(_authService);
                 if (loginWindow.ShowDialog() != true || !loginWindow.IsAuthenticated)
                 {
                     Shutdown();
@@ -73,6 +76,10 @@ namespace SecureGateway
 
             if (!startMinimized)
                 _mainWindow.Show();
+
+            // A tunnel started on the login screen ("connect first") is handed over, not restarted.
+            if (loginWindow?.Bootstrap != null)
+                await _mainWindow.ViewModel.AdoptBootstrapAsync(loginWindow.Bootstrap);
         }
 
         protected override void OnSessionEnding(SessionEndingCancelEventArgs e)

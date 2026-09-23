@@ -35,9 +35,18 @@ namespace SecureGateway.UI.ViewModels
         private string _statusMessage = "";
         private bool _statusIsError;
         private string _lockoutText = "";
+        private bool _isNetworkBlocked;
+        private string _bootstrapLink = "";
+        private string _bootstrapStatus = "";
 
         /// <summary>Raised on the calling thread when sign-in succeeds.</summary>
         public event EventHandler Authenticated;
+
+        /// <summary>
+        /// Tunnel started before sign-in ("connect first"). After Authenticated fires the app
+        /// should hand it to the main window; if the login is abandoned, call AbandonAsync().
+        /// </summary>
+        public BootstrapConnector Bootstrap { get; private set; }
 
         public LoginViewModel(AuthService auth)
         {
@@ -109,6 +118,73 @@ namespace SecureGateway.UI.ViewModels
         public string LockoutText { get => _lockoutText; private set => SetProperty(ref _lockoutText, value); }
         public bool HasLockoutText => !string.IsNullOrEmpty(LockoutText);
 
+        /// <summary>True after the login server proved unreachable; shows the "connect first" option.</summary>
+        public bool IsNetworkBlocked
+        {
+            get => _isNetworkBlocked;
+            set => SetProperty(ref _isNetworkBlocked, value);
+        }
+
+        /// <summary>ss:// or vmess:// link pasted by the user (optional; saved servers are tried otherwise).</summary>
+        public string BootstrapLink { get => _bootstrapLink; set => SetProperty(ref _bootstrapLink, value); }
+        public string BootstrapStatus { get => _bootstrapStatus; private set => SetProperty(ref _bootstrapStatus, value); }
+        public bool IsBootstrapped => Bootstrap?.IsRunning == true;
+
+        /// <summary>Toggles the "connect first" section manually (link on the login screen).</summary>
+        public void ToggleNetworkHelp() => IsNetworkBlocked = !IsNetworkBlocked;
+
+        /// <summary>
+        /// Starts a tunnel through the pasted link or a saved server, then retries the sign-in
+        /// through it. On success the tunnel is kept for hand-over to the main window.
+        /// </summary>
+        public async Task ConnectThroughServerAsync()
+        {
+            if (IsBusy) return;
+
+            if (Bootstrap != null)
+                await Bootstrap.AbandonAsync();
+            Bootstrap = null;
+            OnPropertyChanged(nameof(IsBootstrapped));
+
+            SetBusy(true, "Connecting through server...");
+            var (connector, error) = await BootstrapConnector.TryConnectAsync(
+                BootstrapLink, _auth, msg => BootstrapStatus = msg);
+            SetBusy(false);
+
+            if (connector == null)
+            {
+                BootstrapStatus = "";
+                ShowError(error);
+                return;
+            }
+
+            Bootstrap = connector;
+            OnPropertyChanged(nameof(IsBootstrapped));
+            BootstrapStatus = $"Tunnel up via {connector.Original.Name}. Signing in through it...";
+            IsNetworkBlocked = false;
+
+            // A saved session that could not be verified earlier can be verified now.
+            if (_auth.HasOfflineSession && await _auth.EnsureSessionAsync())
+            {
+                Authenticated?.Invoke(this, EventArgs.Empty);
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(Email) && !string.IsNullOrEmpty(Password))
+                await SubmitAsync();
+            else
+                ShowInfo("Connected through the server. Enter your e-mail and password to sign in.");
+        }
+
+        /// <summary>Tears down a tunnel started for sign-in (login window closed without success).</summary>
+        public async Task AbandonBootstrapAsync()
+        {
+            if (Bootstrap == null) return;
+            await Bootstrap.AbandonAsync();
+            Bootstrap = null;
+            OnPropertyChanged(nameof(IsBootstrapped));
+        }
+
         public bool IsLockedOut
         {
             get
@@ -168,6 +244,14 @@ namespace SecureGateway.UI.ViewModels
 
                 ResetLockout();
                 Authenticated?.Invoke(this, EventArgs.Empty);
+                return;
+            }
+
+            if (result.IsNetworkError)
+            {
+                // Not a wrong password: never counts toward the lockout. Offer "connect first".
+                ShowError(result.Message);
+                IsNetworkBlocked = true;
                 return;
             }
 

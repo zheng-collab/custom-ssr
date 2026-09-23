@@ -36,7 +36,7 @@
 
 ### Option A: Install from the Setup Program (recommended)
 
-1. Run `SecureGateway-Setup-<version>.exe` from the download your administrator sent you.
+1. Run `SecureGateway-Setup.exe` from the download your administrator sent you.
 2. Accept the defaults. If you don't have administrator rights on the PC, choose **Install for me only** when asked.
 3. Launch **SecureGateway** from the Start menu (or the desktop icon, if you ticked it).
 
@@ -56,7 +56,7 @@ Upgrades: run the newer setup file over the existing install; your servers and s
 
 ### Option A3: macOS
 
-1. Open `SecureGateway-<version>-macos-<arch>.dmg` (choose *arm64* for Apple Silicon Macs, *x64* for Intel Macs) and drag **SecureGateway** to **Applications**.
+1. Open `SecureGateway-macos-<arch>.dmg` (choose *arm64* for Apple Silicon Macs, *x64* for Intel Macs) and drag **SecureGateway** to **Applications**.
 2. First launch: macOS may say the app *"cannot be opened because the developer cannot be verified"*. Right-click the app in Applications → **Open** → **Open**. This is needed once. (Administrators: sign and notarize the build to avoid this; see the README.)
 3. Sign in exactly as on Windows. The first time you click **Connect**, macOS asks for your Mac's administrator password so the app can set the system proxy; this happens once per session.
 4. The app lives in the **menu bar** (top-right shield icon) when you close its window. Click the icon to reopen it, or use its menu to connect, disconnect, or quit.
@@ -108,6 +108,16 @@ When you first launch SecureGateway, you will see the **Sign In** window.
 5. After confirming your email, return and sign in.
 
 > **Note:** After signing up, an administrator must grant `gateway.access` permission to your account before you can use the app.
+
+### Signing in from a restricted network (e.g. mainland China)
+
+The login server is blocked on some networks. The symptom is **"Cannot reach the login server (The SSL connection could not be established…)"** right after clicking Sign In. This is not a wrong password and does not count toward the lockout. Do this instead:
+
+1. Click **"Can't reach the login server?"** at the bottom of the sign-in screen (it opens automatically after that error).
+2. Paste the **server link** (`ss://…` or `vmess://…`) your administrator gave you. If you have signed in on this computer before, leave it empty: the app tries the servers it already knows.
+3. Click **Connect through server, then sign in**. The app brings the tunnel up first, checks that the login server answers through it, then signs you in through the tunnel. You land in the main window already connected.
+
+While connected, the app's own traffic to the login server always goes through the tunnel, so syncing shared servers and staying signed in work normally. If you signed in before and your session is still valid, the app starts straight into the main window even while the login server is unreachable; click **Connect** and the session is verified through the tunnel.
 
 ### Forgot Password
 
@@ -583,7 +593,7 @@ It installs the latest `shadowsocks-rust` server as a static binary from GitHub 
 
 ### 方式 A：通过安装程序安装（推荐）
 
-1. 运行管理员发给您的 `SecureGateway-Setup-<版本号>.exe`。
+1. 运行管理员发给您的 `SecureGateway-Setup.exe`。
 2. 按默认选项安装。如果您在该电脑上没有管理员权限，在询问时选择**仅为我安装**。
 3. 从开始菜单（或勾选后生成的桌面图标）启动 **SecureGateway**。
 
@@ -603,7 +613,7 @@ It installs the latest `shadowsocks-rust` server as a static binary from GitHub 
 
 ### 方式 A3：macOS
 
-1. 打开 `SecureGateway-<版本号>-macos-<架构>.dmg`（Apple 芯片的 Mac 选择 *arm64*，Intel 芯片的 Mac 选择 *x64*），将 **SecureGateway** 拖入 **应用程序** 文件夹。
+1. 打开 `SecureGateway-macos-<架构>.dmg`（Apple 芯片的 Mac 选择 *arm64*，Intel 芯片的 Mac 选择 *x64*），将 **SecureGateway** 拖入 **应用程序** 文件夹。
 2. 首次启动时，macOS 可能提示 *"无法打开，因为无法验证开发者"*。在"应用程序"中右键点击该应用 → **打开** → **打开**，只需操作一次。（管理员：对构建进行签名和公证即可避免此提示，详见 README。）
 3. 登录方式与 Windows 完全相同。首次点击 **Connect（连接）** 时，macOS 会要求输入本机管理员密码，以便应用设置系统代理；每次会话只需输入一次。
 4. 关闭窗口后，应用会驻留在**菜单栏**（右上角的盾牌图标）。点击图标可重新打开窗口，或通过其菜单连接、断开或退出。
@@ -655,6 +665,16 @@ SecureGateway/
 5. 确认邮箱后，返回登录。
 
 > **注意：** 注册后，管理员需要为您的账户授予 `gateway.access` 权限，您才能使用该应用。
+
+### 在受限网络（如中国大陆）登录
+
+部分网络会屏蔽登录服务器，表现为点击 Sign In 后立即提示 **"Cannot reach the login server (The SSL connection could not be established…)"**。这不是密码错误，也不会计入锁定次数。请按以下步骤操作：
+
+1. 点击登录界面底部的 **"Can't reach the login server?"（无法连接登录服务器？）**（出现上述错误后会自动展开）。
+2. 粘贴管理员提供的**服务器链接**（`ss://…` 或 `vmess://…`）。如果这台电脑之前登录过，可以留空：应用会尝试已保存的服务器。
+3. 点击 **Connect through server, then sign in（先连接服务器，再登录）**。应用会先建立隧道，确认登录服务器可以通过隧道访问，再通过隧道完成登录。进入主界面时已处于连接状态。
+
+连接期间，应用自身访问登录服务器的流量始终走隧道，因此同步共享服务器、保持登录状态都能正常工作。如果之前登录过且会话仍有效，即使登录服务器暂时无法访问，应用也会直接进入主界面；点击 **Connect（连接）** 后会通过隧道验证会话。
 
 ### 忘记密码
 

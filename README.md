@@ -173,7 +173,7 @@ git clone <repo-url> && cd custom-ssr
 ./scripts/build-mac.sh --arch x64     # force an Intel build
 ```
 
-Output: `build/mac/SecureGateway.app` and `build/SecureGateway-<version>-macos-<arch>.dmg`. The script downloads v2ray-core for macOS (same release as the Windows bundle), assembles the bundle with icon and `Info.plist`, ad-hoc signs it and packs the DMG.
+Output: `build/mac/SecureGateway.app` and `build/SecureGateway-macos-<arch>.dmg`. The script downloads v2ray-core for macOS (same release as the Windows bundle), assembles the bundle with icon and `Info.plist`, ad-hoc signs it and packs the DMG.
 
 **Install:** open the DMG, drag SecureGateway to Applications. First launch on a Mac other than the build machine: Gatekeeper says the developer cannot be verified because the app is not notarized. Right-click the app → **Open** → **Open** (once), or run `xattr -d com.apple.quarantine /Applications/SecureGateway.app`. When connecting for the first time, macOS asks for the administrator password once so the app may change the system proxy.
 
@@ -194,13 +194,13 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-A few minutes later, the repo's **Releases** page has the download links to share. Every ordinary push also runs the builds plus the headless UI test, and *Actions → build → Run workflow* produces the files on demand as artifacts. (macOS builds from the runner are ad-hoc signed; add a Developer ID certificate as a secret and pass `--sign` to notarize.)
+A few minutes later, the repo's **Releases** page has the download links to share. File names carry no version, so these direct links are permanent: `…/releases/latest/download/SecureGateway-Setup.exe`, `SecureGateway-win-x64.zip`, `SecureGateway-macos-arm64.dmg`, `SecureGateway-macos-x64.dmg`. Every ordinary push also runs the builds plus the headless UI test, and *Actions → build → Run workflow* produces the files on demand as artifacts. (macOS builds from the runner are ad-hoc signed; add a Developer ID certificate as a secret and pass `--sign` to notarize.)
 
 **Or build locally.** Windows packages (both imply `-Publish`):
 
 ```powershell
-.\scripts\build.ps1 -Installer          # build\SecureGateway-Setup-<version>.exe   (needs Inno Setup 6)
-.\scripts\build.ps1 -Zip                # build\SecureGateway-<version>-win-x64.zip (no installer needed)
+.\scripts\build.ps1 -Installer          # build\SecureGateway-Setup.exe   (needs Inno Setup 6)
+.\scripts\build.ps1 -Zip                # build\SecureGateway-win-x64.zip (no installer needed)
 .\scripts\build.ps1 -Installer -Zip -SignCert C:\certs\company.pfx   # signed, for Smart App Control
 ```
 

@@ -26,6 +26,7 @@ namespace SecureGateway.UI.ViewModels
         protected readonly ConnectionService ConnectionService;
         protected readonly AppLogger Logger;
         private SharedServerService _sharedServerService;
+        private AuthService _auth;
 
         private bool _isConnected;
         private bool _isConnecting;
@@ -204,9 +205,97 @@ namespace SecureGateway.UI.ViewModels
         public void SetAuthService(AuthService authService)
         {
             if (authService == null) return;
+            _auth = authService;
             _sharedServerService = authService.CreateSharedServerService();
             UserEmail = authService.UserEmail;
-            _ = SyncSharedServersAsync();
+
+            if (authService.IsAuthenticated)
+            {
+                _ = SyncSharedServersAsync();
+            }
+            else
+            {
+                // Offline session (login server unreachable): show what we knew last time so the
+                // user can connect; the real sync runs once the tunnel is up.
+                MergeSharedServers(SharedServerService.LoadCache());
+                if (Servers.Count > 0)
+                    Logger.Info($"Login server unreachable; showing {Servers.Count(s => s.IsShared)} cached shared server(s). Connect to sync.");
+            }
+        }
+
+        /// <summary>
+        /// Adopts a tunnel that was started on the login screen ("connect first") so the user
+        /// is connected the moment the main window appears.
+        /// </summary>
+        public async Task AdoptBootstrapAsync(BootstrapConnector bootstrap)
+        {
+            if (bootstrap == null || !bootstrap.IsRunning) return;
+
+            var (engine, runtime, original) = bootstrap.Detach();
+
+            // Make sure the server is in the list (a pasted link is new; persist it).
+            var existing = Servers.FirstOrDefault(s => s.Id == original.Id)
+                        ?? Servers.FirstOrDefault(s => s.Address == original.Address && s.Port == original.Port && s.Protocol == original.Protocol);
+            if (existing == null)
+            {
+                if (!original.IsShared)
+                    ConfigManager.AddServer(original);
+                Servers.Add(original);
+                existing = original;
+                Logger.Info($"Server added from sign-in link: {original.Name}");
+            }
+            SelectedServer = existing;
+
+            IsConnecting = true;
+            await ConnectionService.AdoptRunningEngineAsync(engine, runtime, existing);
+            IsConnecting = false;
+        }
+
+        private void MergeSharedServers(System.Collections.Generic.IList<ServerProfile> shared)
+        {
+            foreach (var s in Servers.Where(s => s.IsShared).ToList())
+                Servers.Remove(s);
+
+            for (int i = 0; i < shared.Count; i++)
+                Servers.Insert(i, shared[i]);
+
+            if (SelectedServer == null && Servers.Count > 0)
+                SelectedServer = Servers.FirstOrDefault();
+        }
+
+        private bool _postConnectRunning;
+
+        /// <summary>After the tunnel is up: verify an offline session and sync shared servers through it.</summary>
+        private async Task OnTunnelUpAsync()
+        {
+            if (_auth == null || _postConnectRunning) return;
+            _postConnectRunning = true;
+            try
+            {
+                if (!_auth.IsAuthenticated && _auth.HasOfflineSession)
+                {
+                    Logger.Info("Verifying saved sign-in through the tunnel...");
+                    if (await _auth.EnsureSessionAsync())
+                    {
+                        UserEmail = _auth.UserEmail;
+                        Logger.Info("Sign-in verified.");
+                    }
+                    else if (!_auth.HasOfflineSession)
+                    {
+                        Logger.Warning("Saved sign-in was rejected by the server. Please sign out and sign in again.");
+                        await ShowMessageAsync("Sign-in expired",
+                            "Your saved sign-in is no longer valid. Use Sign Out and sign in again.", MessageKind.Warning);
+                        return;
+                    }
+                }
+
+                if (_auth.IsAuthenticated)
+                    await SyncSharedServersAsync();
+            }
+            finally
+            {
+                _postConnectRunning = false;
+            }
         }
 
         public void ClearSharedServers()
@@ -427,19 +516,16 @@ namespace SecureGateway.UI.ViewModels
             try
             {
                 var sharedServers = await _sharedServerService.FetchSharedServersAsync();
+                bool fromCache = sharedServers == null;
+                if (fromCache)
+                    sharedServers = SharedServerService.LoadCache();
 
                 RunOnUi(() =>
                 {
-                    foreach (var s in Servers.Where(s => s.IsShared).ToList())
-                        Servers.Remove(s);
-
-                    for (int i = 0; i < sharedServers.Count; i++)
-                        Servers.Insert(i, sharedServers[i]);
-
-                    if (SelectedServer == null && Servers.Count > 0)
-                        SelectedServer = Servers.FirstOrDefault();
-
-                    Logger.Info($"Synced {sharedServers.Count} shared server(s).");
+                    MergeSharedServers(sharedServers);
+                    Logger.Info(fromCache
+                        ? $"Shared server list unavailable (offline or not authorised); using {sharedServers.Count} cached server(s)."
+                        : $"Synced {sharedServers.Count} shared server(s).");
                 });
             }
             catch (Exception ex)
@@ -510,6 +596,7 @@ namespace SecureGateway.UI.ViewModels
         {
             RunOnUi(() =>
             {
+                bool wasConnected = IsConnected;
                 StatusText = e.Message;
                 IsConnected = e.Status == EngineStatus.Running;
                 IsConnecting = e.Status == EngineStatus.Starting;
@@ -518,6 +605,9 @@ namespace SecureGateway.UI.ViewModels
                     ConnectionInfo = $"{SelectedServer.Protocol} | {SelectedServer.Address}:{SelectedServer.Port} | {SelectedServer.V2RayTransport}";
                 else if (!IsConnected)
                     ConnectionInfo = "Not connected to any server";
+
+                if (IsConnected && !wasConnected)
+                    _ = OnTunnelUpAsync();
             });
         }
 

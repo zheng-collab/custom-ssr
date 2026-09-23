@@ -74,6 +74,24 @@
 
           <TextBlock Name="TxtStatus" Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="12" Margin="0,10,0,0"/>
           <TextBlock Text="{Binding BusyText}" IsVisible="{Binding IsBusy}" Classes="label" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+
+          <!-- "Connect first" for networks that block the login server -->
+          <Button Classes="link" Content="Can't reach the login server?" HorizontalAlignment="Center"
+                  Margin="0,10,0,0" FontSize="11" Foreground="{StaticResource Overlay}" Click="OnNetworkHelp"/>
+          <Border Background="{StaticResource Base}" CornerRadius="6" Padding="10" Margin="0,8,0,0"
+                  IsVisible="{Binding IsNetworkBlocked}">
+            <StackPanel>
+              <TextBlock Classes="label" FontSize="11" TextWrapping="Wrap"
+                         Text="On restricted networks the login server is blocked. Connect through your VPN server first; the sign-in then goes through the tunnel."/>
+              <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,8,0,4"
+                         Text="Server link from your administrator (ss:// or vmess://). Leave empty to use a server saved on this Mac."/>
+              <TextBox Text="{Binding BootstrapLink}" FontSize="12" IsEnabled="{Binding CanInteract}"/>
+              <Button Content="Connect through server, then sign in" HorizontalAlignment="Stretch" FontSize="12"
+                      Margin="0,8,0,0" IsEnabled="{Binding CanInteract}" Click="OnBootstrap"/>
+              <TextBlock Text="{Binding BootstrapStatus}" Foreground="{StaticResource Green}" FontSize="11"
+                         TextWrapping="Wrap" Margin="0,6,0,0"/>
+            </StackPanel>
+          </Border>
         </StackPanel>
       </Border>
     </StackPanel>

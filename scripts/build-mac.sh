@@ -9,7 +9,7 @@
 # Requirements: .NET 8 SDK, Xcode command line tools (iconutil, codesign, hdiutil), curl.
 # v2ray-core for macOS is downloaded from GitHub (release pinned below to match the Windows bundle).
 #
-# Output: build/mac/SecureGateway.app and build/SecureGateway-<version>-macos-<arch>.dmg
+# Output: build/mac/SecureGateway.app and build/SecureGateway-macos-<arch>.dmg
 #
 # Without --sign the app is ad-hoc signed: it runs on your own Mac, but on other Macs Gatekeeper
 # shows "cannot be opened because the developer cannot be verified" -> right-click > Open once,
@@ -136,7 +136,7 @@ fi
 codesign --verify --deep --strict "$APP" && log "Signature verified"
 
 # ---- 5. dmg ------------------------------------------------------------------------------
-DMG="$ROOT/build/SecureGateway-$VERSION-macos-$ARCH.dmg"
+DMG="$ROOT/build/SecureGateway-macos-$ARCH.dmg"
 log "Creating $DMG"
 STAGE="$BUILD/dmg-stage"; rm -rf "$STAGE"; mkdir -p "$STAGE"
 cp -R "$APP" "$STAGE/"

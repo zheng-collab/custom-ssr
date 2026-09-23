@@ -71,6 +71,8 @@ namespace SecureGateway.UI.Views
                 ViewModel.SetAuthService(_authService);
                 Show();
                 Activate();
+                if (loginWindow.Bootstrap != null)
+                    await ViewModel.AdoptBootstrapAsync(loginWindow.Bootstrap);
             }
             else
             {

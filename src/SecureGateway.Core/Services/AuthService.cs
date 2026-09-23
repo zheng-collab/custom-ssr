@@ -57,13 +57,19 @@ namespace SecureGateway.Services
         private static readonly string AppDataDir = AppPaths.DataDir;
         private static readonly string TokenFile = Path.Combine(AppDataDir, "auth_session.json");
 
-        private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(20) };
-
         private Supabase.Client _client;
         private DateTime _loginTimestampUtc = DateTime.UtcNow;
 
+        /// <summary>
+        /// Saved tokens that could not be verified at startup because the login server was
+        /// unreachable (typical on restricted networks). The app may start with them; the
+        /// session is verified via EnsureSessionAsync once a tunnel is up.
+        /// </summary>
+        private SavedSession _offlineSession;
+
         public bool IsAuthenticated => _client?.Auth?.CurrentSession != null;
-        public string UserEmail => _client?.Auth?.CurrentUser?.Email ?? "";
+        public bool HasOfflineSession => !IsAuthenticated && _offlineSession != null;
+        public string UserEmail => _client?.Auth?.CurrentUser?.Email ?? _offlineSession?.Email ?? "";
         public string UserId => _client?.Auth?.CurrentUser?.Id ?? "";
         public string AccessToken => _client?.Auth?.CurrentSession?.AccessToken ?? "";
 
@@ -73,6 +79,32 @@ namespace SecureGateway.Services
         }
 
         public async Task InitializeAsync()
+        {
+            await CreateClientAsync();
+            await TryRestoreSessionAsync();
+        }
+
+        /// <summary>
+        /// Rebuilds the SDK client so it picks up the current HTTP proxy (see HttpClients).
+        /// An established session is carried over; an offline session is re-verified.
+        /// </summary>
+        public async Task ReinitializeClientAsync()
+        {
+            var current = _client?.Auth?.CurrentSession;
+            await CreateClientAsync();
+
+            if (current != null && !string.IsNullOrEmpty(current.RefreshToken))
+            {
+                try { await _client.Auth.SetSession(current.AccessToken, current.RefreshToken); }
+                catch { _offlineSession = new SavedSession { AccessToken = current.AccessToken, RefreshToken = current.RefreshToken, Email = current.User?.Email ?? "", LoginTimestampUtc = _loginTimestampUtc.ToString("o") }; }
+            }
+            else if (_offlineSession != null)
+            {
+                await EnsureSessionAsync();
+            }
+        }
+
+        private async Task CreateClientAsync()
         {
             _client = new Supabase.Client(SupabaseUrl, SupabaseAnonKey, new SupabaseOptions
             {
@@ -89,8 +121,94 @@ namespace SecureGateway.Services
                 if (state == Supabase.Gotrue.Constants.AuthState.TokenRefreshed && sender.CurrentSession != null)
                     _ = PersistSessionAsync(sender.CurrentSession);
             });
+        }
 
-            await TryRestoreSessionAsync();
+        /// <summary>Is the login server reachable right now (through whatever proxy HttpClients uses)?</summary>
+        public async Task<bool> PingAsync()
+        {
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, $"{SupabaseUrl}/auth/v1/health");
+                request.Headers.Add("apikey", SupabaseAnonKey);
+                using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10));
+                using var response = await HttpClients.Shared.SendAsync(request, cts.Token);
+                return (int)response.StatusCode < 500;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Turns an offline session into a verified one (call after a tunnel is up).
+        /// Returns true if the user is now authenticated. Clears the saved session if the
+        /// server rejected it, so the caller should send the user back to the login screen
+        /// when this returns false and HasOfflineSession is also false.
+        /// </summary>
+        public async Task<bool> EnsureSessionAsync()
+        {
+            if (IsAuthenticated) return true;
+            if (_offlineSession == null) return false;
+
+            Session session;
+            try
+            {
+                session = await _client.Auth.SetSession(_offlineSession.AccessToken, _offlineSession.RefreshToken);
+            }
+            catch (GotrueException)
+            {
+                _offlineSession = null;
+                ClearSavedSession();
+                return false;
+            }
+            catch
+            {
+                return false; // still unreachable; stay offline
+            }
+
+            if (session?.User == null)
+            {
+                _offlineSession = null;
+                ClearSavedSession();
+                return false;
+            }
+
+            _offlineSession = null;
+            await PersistSessionAsync(session);
+
+            var access = await CheckGatewayAccessAsync(session.User.Id);
+            if (access == false)
+            {
+                await SignOutSdkAsync();
+                ClearSavedSession();
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>Network-level failures (blocked, reset, timed out) as opposed to auth rejections.</summary>
+        public static bool IsNetworkError(Exception ex)
+        {
+            for (var e = ex; e != null; e = e.InnerException)
+            {
+                if (e is HttpRequestException || e is System.Net.Sockets.SocketException
+                    || e is System.Security.Authentication.AuthenticationException
+                    || e is TaskCanceledException || e is System.IO.IOException)
+                    return true;
+            }
+            return false;
+        }
+
+        private static AuthResult ConnectionFailure(Exception ex)
+        {
+            if (!IsNetworkError(ex))
+                return AuthResult.Failure($"Connection error: {ex.Message}");
+
+            var inner = ex; while (inner.InnerException != null) inner = inner.InnerException;
+            return AuthResult.NetworkFailure(
+                "Cannot reach the login server (" + inner.Message.TrimEnd('.') + "). " +
+                "If you are on a restricted network, connect through your VPN server first using the option below.");
         }
 
         public async Task<AuthResult> SignInAsync(string email, string password, bool rememberMe = false)
@@ -125,11 +243,12 @@ namespace SecureGateway.Services
                 else
                     ClearCredentials();
 
+                _offlineSession = null;
                 return AuthResult.Success(session.User.Email ?? email);
             }
             catch (Exception ex)
             {
-                return AuthResult.Failure($"Connection error: {ex.Message}");
+                return ConnectionFailure(ex);
             }
         }
 
@@ -155,7 +274,7 @@ namespace SecureGateway.Services
             }
             catch (Exception ex)
             {
-                return AuthResult.Failure($"Connection error: {ex.Message}");
+                return ConnectionFailure(ex);
             }
         }
 
@@ -180,7 +299,7 @@ namespace SecureGateway.Services
             }
             catch (Exception ex)
             {
-                return AuthResult.Failure($"Connection error: {ex.Message}");
+                return ConnectionFailure(ex);
             }
         }
 
@@ -227,7 +346,7 @@ namespace SecureGateway.Services
                 request.Content = new StringContent(
                     JsonConvert.SerializeObject(new { password = newPassword }), Encoding.UTF8, "application/json");
 
-                using var response = await Http.SendAsync(request);
+                using var response = await HttpClients.Shared.SendAsync(request);
                 if (!response.IsSuccessStatusCode)
                 {
                     var body = await response.Content.ReadAsStringAsync();
@@ -245,14 +364,14 @@ namespace SecureGateway.Services
                 using var logout = new HttpRequestMessage(HttpMethod.Post, $"{SupabaseUrl}/auth/v1/logout");
                 logout.Headers.Add("apikey", SupabaseAnonKey);
                 logout.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-                try { using var _ = await Http.SendAsync(logout); } catch { }
+                try { using var _ = await HttpClients.Shared.SendAsync(logout); } catch { }
 
                 ClearCredentials();
                 return AuthResult.SuccessWithMessage("Password updated. Sign in with your new password.");
             }
             catch (Exception ex)
             {
-                return AuthResult.Failure($"Connection error: {ex.Message}");
+                return ConnectionFailure(ex);
             }
         }
 
@@ -320,7 +439,7 @@ namespace SecureGateway.Services
             request.Content = new StringContent(
                 JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
 
-            using var response = await Http.SendAsync(request);
+            using var response = await HttpClients.Shared.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -388,7 +507,10 @@ namespace SecureGateway.Services
             }
             catch
             {
-                // Network problem — keep the saved session for next time, stay logged out now.
+                // Login server unreachable (restricted network / offline). Permission was verified
+                // at login and the 120-day cap still holds, so let the app start with this session;
+                // it is verified through the tunnel later (EnsureSessionAsync).
+                _offlineSession = saved;
                 return;
             }
 
@@ -423,7 +545,7 @@ namespace SecureGateway.Services
                 request.Headers.Add("apikey", SupabaseAnonKey);
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", AccessToken);
 
-                using var response = await Http.SendAsync(request);
+                using var response = await HttpClients.Shared.SendAsync(request);
                 if (!response.IsSuccessStatusCode)
                     return (int)response.StatusCode >= 500 ? null : false;
 
@@ -453,6 +575,7 @@ namespace SecureGateway.Services
                 {
                     AccessToken = session.AccessToken ?? "",
                     RefreshToken = session.RefreshToken ?? "",
+                    Email = session.User?.Email ?? "",
                     LoginTimestampUtc = _loginTimestampUtc.ToString("o")
                 };
                 await File.WriteAllTextAsync(TokenFile, JsonConvert.SerializeObject(saved));
@@ -479,6 +602,7 @@ namespace SecureGateway.Services
         {
             public string AccessToken { get; set; } = "";
             public string RefreshToken { get; set; } = "";
+            public string Email { get; set; } = "";
             public string LoginTimestampUtc { get; set; } = "";
         }
     }
@@ -495,6 +619,8 @@ namespace SecureGateway.Services
         public string Email { get; set; } = "";
         public string Message { get; set; } = "";
         public bool RequiresConfirmation { get; set; }
+        /// <summary>The login server could not be reached; not a credential problem and must not count as an attempt.</summary>
+        public bool IsNetworkError { get; set; }
 
         public static AuthResult Success(string email) =>
             new() { IsSuccess = true, Email = email };
@@ -504,5 +630,8 @@ namespace SecureGateway.Services
 
         public static AuthResult Failure(string message) =>
             new() { IsSuccess = false, Message = message };
+
+        public static AuthResult NetworkFailure(string message) =>
+            new() { IsSuccess = false, Message = message, IsNetworkError = true };
     }
 }

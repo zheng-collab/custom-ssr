@@ -63,8 +63,34 @@ namespace SecureGateway.Mac.Smoke
                 vm.IsSignUpMode = true;
                 Pump();
                 Snapshot(w, Path.Combine(outDir, "login-signup.png"));
+
+                // "Connect first" panel for restricted networks.
+                vm.IsSignUpMode = false;
+                vm.ToggleNetworkHelp();
+                Pump();
+                Expect(vm.IsNetworkBlocked, "network-help panel toggles on");
+                Snapshot(w, Path.Combine(outDir, "login-bootstrap.png"));
                 w.Close();
                 Pump();
+            });
+
+            Check("Bootstrap logic (no network needed)", () =>
+            {
+                var t1 = SecureGateway.Services.BootstrapConnector.TryConnectAsync("not a link", auth).GetAwaiter().GetResult();
+                Expect(t1.connector == null && t1.error.Contains("not a supported"), "rejects a non-link");
+
+                var t2 = SecureGateway.Services.BootstrapConnector.TryConnectAsync("ss://@@@", auth).GetAwaiter().GetResult();
+                Expect(t2.connector == null && t2.error.Contains("could not be parsed"), "rejects a malformed link");
+
+                SecureGateway.Services.SharedServerService.ClearCache();
+                var t3 = SecureGateway.Services.BootstrapConnector.TryConnectAsync("", auth).GetAwaiter().GetResult();
+                Expect(t3.connector == null && (t3.error.Contains("No server is saved") || t3.error.Contains("engine") || t3.error.Contains("v2ray")),
+                    "no link + no saved server -> clear error (" + t3.error + ")");
+
+                var ssl = new System.Net.Http.HttpRequestException("The SSL connection could not be established",
+                    new System.Security.Authentication.AuthenticationException("boom"));
+                Expect(SecureGateway.Services.AuthService.IsNetworkError(ssl), "SSL failure classified as network error");
+                Expect(!SecureGateway.Services.AuthService.IsNetworkError(new InvalidOperationException("x")), "logic error not classified as network");
             });
 
             Check("ServerEditWindow", () =>

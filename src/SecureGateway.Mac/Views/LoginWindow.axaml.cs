@@ -43,12 +43,22 @@ namespace SecureGateway.Mac.Views
         /// <summary>True when the user signed in; false when the window was closed without signing in.</summary>
         public Task<bool> WaitForResultAsync() => _result.Task;
 
+        /// <summary>Tunnel started with "connect first", to be adopted by the main window after sign-in.</summary>
+        public SecureGateway.Services.BootstrapConnector Bootstrap => _vm.Bootstrap;
+
         protected override void OnClosing(WindowClosingEventArgs e)
         {
             _timer.Stop();
-            if (!_authenticated) _result.TrySetResult(false);
+            if (!_authenticated)
+            {
+                _result.TrySetResult(false);
+                _ = _vm.AbandonBootstrapAsync();
+            }
             base.OnClosing(e);
         }
+
+        private void OnNetworkHelp(object sender, RoutedEventArgs e) => _vm.ToggleNetworkHelp();
+        private async void OnBootstrap(object sender, RoutedEventArgs e) => await _vm.ConnectThroughServerAsync();
 
         private void OnVmPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
