@@ -109,6 +109,20 @@ namespace SecureGateway.UI.ViewModels
         public string UserEmail { get => _userEmail; set => SetProperty(ref _userEmail, value); }
         public bool IsSyncing { get => _isSyncing; set => SetProperty(ref _isSyncing, value); }
 
+        /// <summary>Product version from Directory.Build.props (e.g. "1.0.2"), for About / status bar text.</summary>
+        public string AppVersion => s_appVersion;
+        private static readonly string s_appVersion = ReadAppVersion();
+
+        private static string ReadAppVersion()
+        {
+            var asm = typeof(MainViewModelBase).Assembly;
+            var info = (System.Reflection.AssemblyInformationalVersionAttribute)Attribute.GetCustomAttribute(
+                asm, typeof(System.Reflection.AssemblyInformationalVersionAttribute));
+            var v = info?.InformationalVersion ?? asm.GetName().Version?.ToString(3) ?? "1.0.0";
+            int plus = v.IndexOf('+');
+            return plus > 0 ? v.Substring(0, plus) : v;
+        }
+
         public ServerProfile SelectedServer
         {
             get => _selectedServer;

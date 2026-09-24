@@ -362,11 +362,9 @@
 
                         <TextBlock Text="About" FontSize="16" FontWeight="Bold" Foreground="#89B4FA" Margin="0,12,0,8"/>
                         <TextBlock Foreground="#A6ADC8" FontSize="13" TextWrapping="Wrap">
-                            SecureGateway v1.0.0 - Enterprise VPN Client
+                            <Run Text="SecureGateway v"/><Run Text="{Binding AppVersion, Mode=OneTime}"/><Run Text=" - Enterprise VPN Client"/>
                             <LineBreak/>
-                            Supports V2Ray (VMess) and Shadowsocks protocols.
-                            <LineBreak/>
-                            Requires v2ray-core to be placed in the v2ray-core subdirectory.
+                            Supports V2Ray (VMess) and Shadowsocks protocols via the bundled v2ray-core engine.
                         </TextBlock>
                     </StackPanel>
                 </ScrollViewer>
@@ -411,7 +409,7 @@
 
                 <TextBlock Grid.Column="2" Foreground="#6C7086" FontSize="11">
                     <Run Text="{Binding UserEmail, Mode=OneWay}"/>
-                    <Run Text=" | SecureGateway v1.0.0"/>
+                    <Run Text=" | SecureGateway v"/><Run Text="{Binding AppVersion, Mode=OneTime}"/>
                 </TextBlock>
             </Grid>
         </Border>

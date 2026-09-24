@@ -161,8 +161,11 @@
             <CheckBox Content="Keep running in the menu bar when the window is closed" IsChecked="{Binding MinimizeToTray}"/>
 
             <TextBlock Text="About" Classes="h2" Margin="0,16,0,0"/>
-            <TextBlock Classes="label" FontSize="13" TextWrapping="Wrap"
-                       Text="SecureGateway v1.0.0 for macOS - Enterprise VPN Client&#x0a;Supports V2Ray (VMess) and Shadowsocks protocols via the bundled v2ray-core engine."/>
+            <TextBlock Classes="label" FontSize="13" TextWrapping="Wrap">
+              <Run Text="SecureGateway v"/><Run Text="{Binding AppVersion, Mode=OneTime}"/><Run Text=" for macOS - Enterprise VPN Client"/>
+              <LineBreak/>
+              <Run Text="Supports V2Ray (VMess) and Shadowsocks protocols via the bundled v2ray-core engine."/>
+            </TextBlock>
           </StackPanel>
         </ScrollViewer>
       </TabItem>
@@ -188,7 +191,7 @@
           <TextBlock Text="{Binding StatusText}" Classes="label" FontSize="11"/>
         </StackPanel>
         <TextBlock Grid.Column="2" Foreground="{StaticResource Overlay}" FontSize="11">
-          <Run Text="{Binding UserEmail, Mode=OneWay}"/><Run Text=" | SecureGateway v1.0.0"/>
+          <Run Text="{Binding UserEmail, Mode=OneWay}"/><Run Text=" | SecureGateway v"/><Run Text="{Binding AppVersion, Mode=OneTime}"/>
         </TextBlock>
       </Grid>
     </Border>

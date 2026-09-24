@@ -3,6 +3,8 @@
 #   git tag v1.0.1 && git push origin v1.0.1      -> Release "v1.0.1" with:
 #       SecureGateway-Setup.exe, SecureGateway-win-x64.zip,
 #       SecureGateway-macos-arm64.dmg, SecureGateway-macos-x64.dmg
+#   The tag also becomes the product version shown in the installer, the About tab and
+#   the .app bundle, so Directory.Build.props never has to be edited for a release.
 #
 # Every push / pull request just builds (and runs the headless UI test) so breakage is caught early.
 # "Run workflow" in the Actions tab builds on demand and keeps the files as workflow artifacts.
@@ -48,6 +50,10 @@ jobs:
           dotnet-version: "8.0.x"
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
+      - name: Use the tag as the product version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: sed -i "s#<Version>.*</Version>#<Version>${GITHUB_REF_NAME#v}</Version>#" Directory.Build.props && cat Directory.Build.props
       - name: Build, publish, package
         shell: pwsh
         run: .\scripts\build.ps1 -Installer -Zip
@@ -90,6 +96,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
+      - name: Use the tag as the product version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: sed -i '' "s#<Version>.*</Version>#<Version>${GITHUB_REF_NAME#v}</Version>#" Directory.Build.props && cat Directory.Build.props
       - name: Build .app and .dmg
         run: ./scripts/build-mac.sh --arch ${{ matrix.arch }}
       - id: upload
@@ -120,9 +129,12 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: dist
+      - name: Add the staff manual next to the installers
+        run: mkdir -p dist/docs && cp USER_MANUAL_ZH.pdf dist/docs/
       - name: List files
         run: find dist -type f | sort
       - name: Create release (or add files to an existing one) and attach installers
@@ -134,11 +146,11 @@ jobs:
           # "Draft a new release" page; then just attach the files to it.
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber \
-              dist/windows/* dist/macos-arm64/* dist/macos-x64/*
+              dist/windows/* dist/macos-arm64/* dist/macos-x64/* dist/docs/*
           else
             gh release create "$TAG" \
               --repo "$GITHUB_REPOSITORY" \
               --title "SecureGateway $TAG" \
               --generate-notes \
-              dist/windows/* dist/macos-arm64/* dist/macos-x64/*
+              dist/windows/* dist/macos-arm64/* dist/macos-x64/* dist/docs/*
           fi

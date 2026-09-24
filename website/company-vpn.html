@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Company VPN · 公司 VPN</title>
+<meta name="description" content="Download and set up the Fourth Zodiac company VPN (SecureGateway) on Windows, macOS, Android and iPhone.">
+<!--
+  Drop-in page for https://fourthzodiac.com/company-vpn (or any path you like).
+  Self-contained: no scripts, no external CSS. Every download link points at the
+  GitHub "latest release" redirect, so the page never needs editing when a new
+  version is tagged. Text is bilingual (中文 / English) in one page.
+-->
+<style>
+  :root {
+    --bg:#ffffff; --fg:#1e1e2e; --muted:#5c5f77; --card:#f6f7fb; --line:#e3e5ee;
+    --accent:#1e66f5; --accent-fg:#ffffff; --ok:#40a02b; --warn:#df8e1d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:#1e1e2e; --fg:#cdd6f4; --muted:#a6adc8; --card:#181825; --line:#313244;
+      --accent:#89b4fa; --accent-fg:#1e1e2e; --ok:#a6e3a1; --warn:#f9e2af;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#1e1e2e; --fg:#cdd6f4; --muted:#a6adc8; --card:#181825; --line:#313244;
+    --accent:#89b4fa; --accent-fg:#1e1e2e; --ok:#a6e3a1; --warn:#f9e2af;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font: 16px/1.6 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", Roboto, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 2rem; margin: 0 0 4px; }
+  h2 { font-size: 1.35rem; margin: 40px 0 12px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+  h3 { font-size: 1.05rem; margin: 20px 0 6px; }
+  p, li { color: var(--fg); }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .en { color: var(--muted); font-size: .95em; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 16px 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+  .card h3 { margin: 0 0 6px; }
+  .card .meta { color: var(--muted); font-size: .9em; margin-bottom: 12px; }
+  .btn { display: inline-block; background: var(--accent); color: var(--accent-fg); text-decoration: none;
+         font-weight: 600; padding: 10px 16px; border-radius: 8px; }
+  .btn.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); margin-left: 6px; }
+  .note { border-left: 4px solid var(--warn); background: var(--card); padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 12px 0; }
+  .ok { border-left-color: var(--ok); }
+  ol li, ul li { margin: 4px 0; }
+  code { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; font-size: .92em; }
+  a { color: var(--accent); }
+  footer { color: var(--muted); font-size: .85em; margin-top: 48px; border-top: 1px solid var(--line); padding-top: 12px; }
+  @media (max-width: 480px) { h1 { font-size: 1.6rem; } .btn { display:block; text-align:center; margin: 6px 0 0; } .btn.secondary { margin-left: 0; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>公司 VPN（SecureGateway）</h1>
+  <p class="sub">Fourth Zodiac company VPN · 用公司邮箱登录，一键连接。<span class="en">Sign in with your company e-mail and connect with one click.</span></p>
+
+  <h2>1. 下载 · Download</h2>
+  <p>下载链接永远指向最新版本。<span class="en">Links always point to the newest release.</span>
+     所有版本：<a href="https://github.com/zheng-collab/custom-ssr/releases/latest">GitHub Releases</a></p>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Windows 10 / 11</h3>
+      <div class="meta">安装包（推荐）· Installer (recommended)</div>
+      <a class="btn" href="https://github.com/zheng-collab/custom-ssr/releases/latest/download/SecureGateway-Setup.exe">下载 SecureGateway-Setup.exe</a>
+      <a class="btn secondary" href="https://github.com/zheng-collab/custom-ssr/releases/latest/download/SecureGateway-win-x64.zip">免安装 ZIP</a>
+    </div>
+    <div class="card">
+      <h3>macOS（Apple 芯片 M1–M4）</h3>
+      <div class="meta">macOS 11 或更高 · Apple Silicon</div>
+      <a class="btn" href="https://github.com/zheng-collab/custom-ssr/releases/latest/download/SecureGateway-macos-arm64.dmg">下载 SecureGateway-macos-arm64.dmg</a>
+    </div>
+    <div class="card">
+      <h3>macOS（Intel 芯片）</h3>
+      <div class="meta">macOS 11 或更高 · Intel</div>
+      <a class="btn" href="https://github.com/zheng-collab/custom-ssr/releases/latest/download/SecureGateway-macos-x64.dmg">下载 SecureGateway-macos-x64.dmg</a>
+    </div>
+    <div class="card">
+      <h3>Android / iPhone</h3>
+      <div class="meta">使用第三方客户端，见第 4 节 · Third-party apps, see section 4</div>
+      <a class="btn" href="https://github.com/2dust/v2rayNG/releases/latest">Android: v2rayNG</a>
+      <a class="btn secondary" href="https://apps.apple.com/app/shadowrocket/id932747118">iPhone: Shadowrocket</a>
+    </div>
+  </div>
+
+  <p>使用手册（中文 PDF）：<a href="https://github.com/zheng-collab/custom-ssr/raw/HEAD/USER_MANUAL_ZH.pdf">SecureGateway 员工使用手册</a>
+     <span class="en">· Full guide (EN/ZH): <a href="https://github.com/zheng-collab/custom-ssr/blob/HEAD/USER_GUIDE.md">USER_GUIDE.md</a></span></p>
+
+  <h2>2. Windows 安装 · Install on Windows</h2>
+  <ol>
+    <li>运行 <code>SecureGateway-Setup.exe</code>，一路“下一步”。<span class="en">Run the installer and click Next.</span></li>
+    <li>如果 Windows 提示“Windows 已保护你的电脑”，点击 <b>更多信息 → 仍要运行</b>。
+        <span class="en">If SmartScreen appears: More info → Run anyway.</span></li>
+    <li>如果提示“智能应用控制已阻止”，需要先关闭智能应用控制：<b>Windows 安全中心 → 应用和浏览器控制 → 智能应用控制设置 → 关闭</b>（关闭后无法再打开，这是 Windows 的设计）。
+        <span class="en">If Smart App Control blocks it: Windows Security → App &amp; browser control → Smart App Control → Off.</span></li>
+    <li>打开 SecureGateway，用公司邮箱和密码登录，点击 <b>Connect</b>。<span class="en">Sign in with your company e-mail and click Connect.</span></li>
+  </ol>
+
+  <h2>3. macOS 安装 · Install on macOS</h2>
+  <ol>
+    <li>打开 <code>.dmg</code>，把 SecureGateway 拖到“应用程序”。<span class="en">Open the .dmg and drag SecureGateway to Applications.</span></li>
+    <li>第一次打开：在“应用程序”里 <b>右键（或按住 Control 点击）SecureGateway → 打开 → 打开</b>。如果仍被拦截：<b>系统设置 → 隐私与安全性 → 仍要打开</b>。
+        <span class="en">First launch: right-click → Open → Open, or System Settings → Privacy &amp; Security → Open Anyway.</span></li>
+    <li>连接时 macOS 会要求输入一次 Mac 密码以设置系统代理。<span class="en">macOS asks for your Mac password once to set the system proxy.</span></li>
+  </ol>
+
+  <h2>4. 手机：Android 与 iPhone · Phones</h2>
+  <p>手机不需要公司账号，用电脑版里的二维码即可连接。<span class="en">Phones connect from a QR code shown by the desktop app.</span></p>
+  <h3>Android</h3>
+  <ol>
+    <li>安装 <a href="https://github.com/2dust/v2rayNG/releases/latest">v2rayNG</a>（下载 <code>v2rayNG_x.x.x_arm64-v8a.apk</code>；Google Play 也有）。
+        <span class="en">Install v2rayNG (APK from GitHub, or Google Play).</span></li>
+    <li>在电脑版 SecureGateway 里打开 <b>Servers（服务器）</b> 标签，选中服务器，点击 <b>Share QR</b>。没有电脑的同事可向 IT 索取二维码图片。
+        <span class="en">On the desktop app: Servers tab → select the server → Share QR. Or ask IT for the QR image.</span></li>
+    <li>v2rayNG 右上角 <b>＋ → 扫描二维码</b>（或 <b>从剪贴板导入</b>）。<span class="en">In v2rayNG: + → Scan QR code (or Import from clipboard).</span></li>
+    <li>点击右下角的 <b>V</b> 按钮连接；Android 会询问一次“允许 VPN 连接”，选择允许。
+        <span class="en">Tap the V button; allow the VPN request once.</span></li>
+    <li>验证：v2rayNG 里下拉刷新会显示延迟；或在浏览器打开 <a href="https://www.google.com">google.com</a>。
+        <span class="en">Check: pull to refresh shows latency, or open google.com.</span></li>
+  </ol>
+  <h3>iPhone / iPad</h3>
+  <ol>
+    <li>App Store 安装 <a href="https://apps.apple.com/app/shadowrocket/id932747118">Shadowrocket</a>（付费，需要非中国大陆区 Apple ID）。<span class="en">Install Shadowrocket (paid, non-mainland Apple ID).</span></li>
+    <li>右上角 <b>＋ → 扫描二维码</b>，扫电脑版 <b>Share QR</b> 显示的二维码。<span class="en">+ → Scan QR Code, scan the desktop app's Share QR.</span></li>
+    <li>打开顶部的开关，允许添加 VPN 配置。<span class="en">Turn on the switch and allow the VPN profile.</span></li>
+  </ol>
+
+  <h2>5. 登录问题 · Sign-in help</h2>
+  <div class="note">
+    <b>忘记密码 · Forgot password:</b> 在登录窗口点击 <b>Forgot password?</b>，或直接访问
+    <a href="https://fourthzodiac.com/forgot-password">fourthzodiac.com/forgot-password</a>。
+  </div>
+  <div class="note">
+    <b>在中国大陆登录报错 · Sign-in fails in mainland China</b>（如 “The SSL connection could not be established”）：
+    在登录窗口点击 <b>Can't connect?</b>，粘贴 IT 提供的服务器链接（以 <code>ss://</code> 开头），点击 <b>Connect through server</b>，然后再登录。程序会先建立 VPN 隧道，再通过隧道完成登录。
+    <span class="en">Click “Can't connect?”, paste the server link from IT, click “Connect through server”, then sign in.</span>
+  </div>
+  <div class="note ok">
+    <b>没有账号 · No account yet:</b> 请联系 IT 开通（需要 <code>gateway.access</code> 权限）。
+    <span class="en">Ask IT to enable your account.</span>
+  </div>
+
+  <footer>
+    SecureGateway 支持 V2Ray (VMess) 与 Shadowsocks 协议，内置 v2ray-core，无需另外安装。
+    源代码与所有版本：<a href="https://github.com/zheng-collab/custom-ssr">github.com/zheng-collab/custom-ssr</a>
+  </footer>
+</main>
+</body>
+</html>

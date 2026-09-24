@@ -2,6 +2,6 @@
   <!-- Single place to bump the product version. Used by all three projects,
        build.ps1 (installer/zip names) and build-mac.sh (bundle/dmg names). -->
   <PropertyGroup>
-    <Version>1.0.0</Version>
+    <Version>1.0.2</Version>
   </PropertyGroup>
 </Project>
