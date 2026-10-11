@@ -88,13 +88,15 @@
             <StackPanel>
               <TextBlock Text="Proxy Mode" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,12"/>
               <UniformGrid Columns="3">
-                <RadioButton Content="Global Proxy" GroupName="ProxyMode"
+                <RadioButton Content="Global Proxy" GroupName="ProxyMode" ToolTip.Tip="Everything goes through the VPN (except LAN and your bypass list)."
                              IsChecked="{Binding ProxyMode, Converter={StaticResource EnumBool}, ConverterParameter=Global, Mode=TwoWay}"/>
-                <RadioButton Content="Rule-Based" GroupName="ProxyMode"
+                <RadioButton Content="Rule-Based" GroupName="ProxyMode" ToolTip.Tip="Mainland-China sites and your bypass list connect directly; everything else goes through the VPN."
                              IsChecked="{Binding ProxyMode, Converter={StaticResource EnumBool}, ConverterParameter=Rule, Mode=TwoWay}"/>
-                <RadioButton Content="Direct (No Proxy)" GroupName="ProxyMode"
+                <RadioButton Content="Direct (No Proxy)" GroupName="ProxyMode" ToolTip.Tip="Tunnel stays up but the system proxy is off."
                              IsChecked="{Binding ProxyMode, Converter={StaticResource EnumBool}, ConverterParameter=Direct, Mode=TwoWay}"/>
               </UniformGrid>
+              <TextBlock Foreground="{StaticResource Overlay}" FontSize="11" TextWrapping="Wrap" Margin="0,10,0,0"
+                         Text="Rule-Based: mainland-China sites connect directly, everything else goes through the VPN. A site that blocks the VPN's IP can be added to the bypass list in Settings."/>
             </StackPanel>
           </Border>
         </Grid>
@@ -159,6 +161,13 @@
             <CheckBox Content="Start at login" IsChecked="{Binding AutoStart}"/>
             <CheckBox Content="Auto-connect on startup" IsChecked="{Binding AutoConnect}"/>
             <CheckBox Content="Keep running in the menu bar when the window is closed" IsChecked="{Binding MinimizeToTray}"/>
+
+            <TextBlock Text="Sites that bypass the VPN" Classes="h2" Margin="0,16,0,0"/>
+            <TextBlock Classes="label" FontSize="12" TextWrapping="Wrap"
+                       Text="One per line. These connect directly with your real IP, in every proxy mode. Use it for sites that reject the VPN's address (banks, streaming, company portals). A domain covers all its subdomains; IPs and CIDR ranges work too. Applied when you click elsewhere; the tunnel restarts for a second."/>
+            <TextBox Name="TxtDirectDomains" Text="{Binding DirectDomainsText, UpdateSourceTrigger=LostFocus}" AcceptsReturn="True" Height="120"
+                     FontFamily="Menlo, Consolas, monospace" FontSize="12" TextWrapping="NoWrap"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"/>
 
             <TextBlock Text="About" Classes="h2" Margin="0,16,0,0"/>
             <TextBlock Classes="label" FontSize="13" TextWrapping="Wrap">

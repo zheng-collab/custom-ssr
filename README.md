@@ -153,9 +153,11 @@ Or run the published executable from `build/publish/SecureGateway.exe`.
 
 | Mode | Description |
 |------|-------------|
-| **Global** | All traffic goes through the VPN proxy |
-| **Rule-Based** | Uses PAC rules to determine which traffic is proxied |
-| **Direct** | No proxy - all traffic goes directly (disables system proxy) |
+| **Global** | All traffic goes through the VPN (LAN addresses and your bypass list excepted) |
+| **Rule-Based** | Mainland-China sites (`geosite:cn` / `geoip:cn`) and your bypass list connect directly; everything else goes through the VPN |
+| **Direct** | Tunnel stays up but the system proxy is switched off |
+
+**Bypass list** (Settings → *Sites that bypass the VPN*): one domain, IP or CIDR per line. Use it for sites that refuse the VPS's address (banks, streaming services, portals with IP allow-lists). It applies in every mode; changes take effect within a second while connected.
 
 ## Importing Servers
 

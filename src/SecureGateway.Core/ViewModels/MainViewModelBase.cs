@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -38,6 +39,7 @@ namespace SecureGateway.UI.ViewModels
         private string _latency = "N/A";
         private string _connectionDuration = "00:00:00";
         private ProxyMode _proxyMode;
+        private string _directDomainsText = "";
         private bool _autoStart;
         private bool _autoConnect;
         private bool _minimizeToTray;
@@ -143,7 +145,31 @@ namespace SecureGateway.UI.ViewModels
         public ProxyMode ProxyMode
         {
             get => _proxyMode;
-            set { if (SetProperty(ref _proxyMode, value)) ConnectionService.ChangeProxyMode(value); }
+            set { if (SetProperty(ref _proxyMode, value)) FireAndForget(ConnectionService.ChangeProxyModeAsync(value), "change proxy mode"); }
+        }
+
+        /// <summary>
+        /// Sites that bypass the VPN, one per line (domain, IP or CIDR). Saved and applied as
+        /// soon as the text box loses focus; while connected the tunnel restarts briefly.
+        /// </summary>
+        public string DirectDomainsText
+        {
+            get => _directDomainsText;
+            set
+            {
+                if (!SetProperty(ref _directDomainsText, value ?? "")) return;
+                var list = RoutingOptions.NormalizeList(_directDomainsText.Split('\n', '\r', ',', ';'));
+                if (list.SequenceEqual(ConfigManager.Config.DirectDomains ?? new List<string>(), StringComparer.OrdinalIgnoreCase)) return;
+                ConfigManager.Config.DirectDomains = list;
+                ConfigManager.Save();
+                FireAndForget(ConnectionService.ApplyRoutingAsync(), "apply bypass list");
+            }
+        }
+
+        private void FireAndForget(Task task, string what)
+        {
+            task.ContinueWith(t => Logger.Error($"Failed to {what}: {t.Exception?.GetBaseException().Message}"),
+                TaskContinuationOptions.OnlyOnFaulted);
         }
 
         public bool AutoStart
@@ -341,11 +367,13 @@ namespace SecureGateway.UI.ViewModels
             _autoStart = config.AutoStart;
             _autoConnect = config.AutoConnect;
             _minimizeToTray = config.MinimizeToTray;
+            _directDomainsText = string.Join(Environment.NewLine, RoutingOptions.NormalizeList(config.DirectDomains));
 
             OnPropertyChanged(nameof(ProxyMode));
             OnPropertyChanged(nameof(AutoStart));
             OnPropertyChanged(nameof(AutoConnect));
             OnPropertyChanged(nameof(MinimizeToTray));
+            OnPropertyChanged(nameof(DirectDomainsText));
 
             Logger.Info("Configuration loaded.");
         }

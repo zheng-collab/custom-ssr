@@ -121,16 +121,8 @@ namespace SecureGateway.Core.Config
                 EnableLogging = true,
                 DnsServer = "8.8.8.8",
                 EnableDnsOverHttps = true,
-                DirectDomains = new()
-                {
-                    "localhost",
-                    "*.local",
-                    "*.lan"
-                },
+                DirectDomains = new(),
                 BlockedDomains = new()
-                {
-                    "*.ads.example.com"
-                }
             };
         }
 

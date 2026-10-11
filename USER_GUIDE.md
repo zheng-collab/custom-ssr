@@ -73,6 +73,8 @@ There is no SecureGateway app for phones; the server works with the standard mob
 2. On the phone, in the VPN app: **＋ → Scan QR code**, and scan the screen. (Or copy the link, send it to the phone and use **Import from clipboard**.)
 3. Tap the connect button in the phone app; Android asks once to allow the VPN connection.
 
+**A site blocks the VPN's IP on the phone?** In v2rayNG open **Settings → Routing settings** (设置 → 路由设置): choose the predefined rule **Bypass LAN and mainland China** (绕过局域网及大陆地址) to keep Chinese sites direct, and add any other site to the **Direct** domain list, one per line (`chase.com`). v2rayNG also has **Per-app proxy** under Settings, which lets you exclude a banking app entirely. In Shadowrocket the same lives under **Config → Routing** and the per-site rules in the config editor.
+
 The link contains the server's credentials. Share it only with staff; if it leaks, the administrator regenerates the server password (re-run the server script after deleting its config) and everyone imports the new link.
 
 ### Option B: Build from Source
@@ -200,8 +202,8 @@ The Dashboard provides a real-time overview of your connection.
 
 Choose how traffic is routed:
 
-- **Global Proxy** — All internet traffic goes through the VPN.
-- **Rule-Based** — Only specific traffic goes through the VPN (using PAC rules).
+- **Global Proxy** — All internet traffic goes through the VPN (except LAN addresses and your bypass list).
+- **Rule-Based** — Mainland-China sites and your bypass list connect directly; everything else goes through the VPN.
 - **Direct (No Proxy)** — VPN tunnel is active but system proxy is disabled.
 
 ## 6. Servers Tab
@@ -317,15 +319,25 @@ SecureGateway can import servers from standard share link formats:
 
 | Mode | Behavior | Best For |
 |------|----------|----------|
-| **Global** | All system traffic goes through the proxy | Maximum privacy, accessing region-locked content |
-| **Rule-Based** | Uses PAC rules to selectively proxy traffic | Daily use — local sites go direct, blocked sites go through proxy |
+| **Global** | Everything goes through the VPN, except LAN addresses and your bypass list | When you want every site to see the VPN's address |
+| **Rule-Based** | Mainland-China sites (`geosite:cn`, `geoip:cn`) and your bypass list connect directly; everything else goes through the VPN | Daily use |
 | **Direct** | No system proxy configured (tunnel still active) | Manual proxy configuration in specific apps |
 
 ### Changing Proxy Mode
 
 - Use the radio buttons in the **Dashboard** tab.
-- The change takes effect immediately, even while connected.
+- The change takes effect immediately, even while connected (the tunnel restarts for about a second when the routing changes).
 - In **Direct** mode, you can still manually configure apps to use `127.0.0.1:10808` (SOCKS5) or `127.0.0.1:10809` (HTTP).
+
+### A site refuses to load or says your IP is not allowed
+
+Some sites block data-centre addresses, which is what the VPS is, or only accept visitors from certain countries: online banking, streaming services, government portals, sites with IP allow-lists. Tell the app to reach those sites directly, with your real address:
+
+1. Open **Settings** → **Sites that bypass the VPN**.
+2. Type the site, one per line, for example `chase.com` or `netflix.com`. A domain covers all its subdomains; IP addresses and CIDR ranges such as `203.0.113.0/24` also work. Pasting a full URL is fine.
+3. Click anywhere outside the box. The list is saved and applied at once; while connected the tunnel restarts for about a second.
+
+The bypass list applies in Global and Rule-Based modes. If a Chinese site is the one complaining, switching to **Rule-Based** is usually enough, because it already sends all mainland-China sites direct.
 
 ## 11. Settings Tab
 
@@ -642,6 +654,8 @@ It installs the latest `shadowsocks-rust` server as a static binary from GitHub 
 2. 在手机的 VPN 应用中：**＋ → 扫描二维码**，对准电脑屏幕扫描。（或复制链接发到手机，使用 **从剪贴板导入**。）
 3. 在手机应用中点击连接；Android 会提示一次是否允许 VPN 连接。
 
+**手机上某网站提示 IP 受限？** 在 v2rayNG 打开 **设置 → 路由设置**：预定义规则选 **绕过局域网及大陆地址**，国内网站就会直连；其他需要直连的网站加到 **直连域名** 列表，每行一个（如 `chase.com`）。v2rayNG 的设置里还有 **分应用代理**，可以把银行 App 整个排除在 VPN 之外。Shadowrocket 对应的是 **配置 → 路由** 以及配置编辑器中的按站点规则。
+
 该链接包含服务器凭据，只能分享给公司员工。如有泄露，请管理员重新生成服务器密码（删除服务器配置后重新运行安装脚本），然后所有人重新导入新链接。
 
 ### 方式 B：从源码编译
@@ -769,8 +783,8 @@ SecureGateway/
 
 选择流量路由方式：
 
-- **Global Proxy（全局代理）** — 所有网络流量都通过 VPN。
-- **Rule-Based（规则模式）** — 仅特定流量通过 VPN（使用 PAC 规则）。
+- **Global Proxy（全局代理）** — 所有网络流量都通过 VPN（局域网地址和"绕过列表"除外）。
+- **Rule-Based（规则模式）** — 中国大陆网站和"绕过列表"中的网站直连，其余流量通过 VPN。
 - **Direct（直连模式）** — VPN 隧道保持活跃，但不配置系统代理。
 
 ## 6. 服务器页
@@ -886,15 +900,25 @@ SecureGateway 支持从标准分享链接格式导入服务器：
 
 | 模式 | 行为 | 适用场景 |
 |------|------|----------|
-| **Global（全局）** | 所有系统流量通过代理 | 最大隐私保护、访问区域锁定内容 |
-| **Rule-Based（规则）** | 使用 PAC 规则选择性代理流量 | 日常使用——国内网站直连，被屏蔽网站走代理 |
+| **Global（全局）** | 除局域网地址和"绕过列表"外，所有流量都通过 VPN | 希望所有网站都看到 VPN 地址时 |
+| **Rule-Based（规则）** | 中国大陆网站（`geosite:cn`、`geoip:cn`）和"绕过列表"直连，其余流量通过 VPN | 日常使用 |
 | **Direct（直连）** | 不配置系统代理（隧道仍然活跃） | 在特定应用中手动配置代理 |
 
 ### 切换代理模式
 
 - 在**仪表盘**页使用单选按钮切换。
-- 即使在连接状态下，更改也会立即生效。
+- 即使在连接状态下，更改也会立即生效（路由变化时隧道会重启约一秒）。
 - 在**直连**模式下，您仍然可以手动将应用配置为使用 `127.0.0.1:10808`（SOCKS5）或 `127.0.0.1:10809`（HTTP）。
+
+### 某个网站打不开，或提示"您所在地区 / IP 不允许访问"
+
+有些网站会屏蔽数据中心地址（VPS 就是数据中心），或只允许特定国家访问：网上银行、视频网站、政务网站、设置了 IP 白名单的系统等。可以让这些网站不走 VPN、直接用您的真实地址访问：
+
+1. 打开 **Settings（设置）** → **Sites that bypass the VPN（绕过 VPN 的网站）**。
+2. 每行输入一个网站，例如 `chase.com`、`netflix.com`。填域名会自动包含其所有子域名；也可以填 IP 地址或网段（如 `203.0.113.0/24`）；直接粘贴完整网址也可以。
+3. 点击输入框外的任意位置，列表立即保存并生效；已连接时隧道会重启约一秒。
+
+绕过列表在全局和规则两种模式下都有效。如果是国内网站打不开，通常只需切换到 **Rule-Based（规则模式）**，它已经让所有中国大陆网站直连。
 
 ## 11. 设置页
 

@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -30,8 +32,14 @@ namespace SecureGateway.Core.Engines
         public event EventHandler<EngineStatusChangedEventArgs> StatusChanged;
         public event EventHandler<EngineLogEventArgs> LogReceived;
 
-        public V2RayEngine()
+        /// <summary>Routing applied at the next StartAsync (restart the engine to change it live).</summary>
+        public RoutingOptions Routing { get; set; } = new();
+
+        public V2RayEngine() : this(null) { }
+
+        public V2RayEngine(RoutingOptions routing)
         {
+            Routing = routing ?? new RoutingOptions();
             _v2rayPath = SecureGateway.Platform.AppPaths.V2RayExecutable;
             _configDir = Path.Combine(SecureGateway.Platform.AppPaths.DataDir, "v2ray");
             Directory.CreateDirectory(_configDir);
@@ -72,7 +80,7 @@ namespace SecureGateway.Core.Engines
             _statsApiPort = PortHelper.FindFreePort(DefaultStatsApiPort, profile.LocalSocksPort, profile.LocalHttpPort);
 
             var configPath = Path.Combine(_configDir, "config.json");
-            await File.WriteAllTextAsync(configPath, GenerateConfig(profile));
+            await File.WriteAllTextAsync(configPath, BuildConfig(profile));
             Log($"V2Ray config written to {configPath}");
 
             try
@@ -268,7 +276,8 @@ namespace SecureGateway.Core.Engines
                 ? $"Shadowsocks ({profile.SsEncryption})"
                 : $"V2Ray ({profile.V2RayTransport})";
 
-        private string GenerateConfig(ServerProfile profile)
+        /// <summary>The full v2ray-core JSON config for this profile and the current Routing.</summary>
+        public string BuildConfig(ServerProfile profile)
         {
             var config = new JObject
             {
@@ -339,39 +348,104 @@ namespace SecureGateway.Core.Engines
                 {
                     // AsIs: never resolve domains locally. Local DNS is unreliable in
                     // restricted networks and would stall every new connection; the
-                    // remote server resolves instead.
+                    // remote server resolves instead. Domain rules still match because
+                    // browsers hand the hostname to the local HTTP/SOCKS proxy.
                     ["domainStrategy"] = "AsIs",
-                    ["rules"] = new JArray
-                    {
-                        new JObject
-                        {
-                            ["type"] = "field",
-                            ["inboundTag"] = new JArray("api-in"),
-                            ["outboundTag"] = "api"
-                        },
-                        new JObject
-                        {
-                            ["type"] = "field",
-                            ["outboundTag"] = "block",
-                            ["domain"] = new JArray("geosite:category-ads-all")
-                        },
-                        new JObject
-                        {
-                            ["type"] = "field",
-                            ["outboundTag"] = "direct",
-                            ["domain"] = new JArray("geosite:private")
-                        },
-                        new JObject
-                        {
-                            ["type"] = "field",
-                            ["outboundTag"] = "direct",
-                            ["ip"] = new JArray("geoip:private")
-                        }
-                    }
+                    ["rules"] = BuildRoutingRules(Routing)
                 }
             };
 
             return config.ToString(Formatting.Indented);
+        }
+
+        /// <summary>
+        /// Routing rules, first match wins: stats API, ad block, LAN direct, then the user's
+        /// bypass list and (Rule-Based mode) mainland-China sites direct. Everything else goes
+        /// to the "proxy" outbound.
+        /// </summary>
+        public static JArray BuildRoutingRules(RoutingOptions routing)
+        {
+            routing ??= new RoutingOptions();
+            var rules = new JArray
+            {
+                new JObject
+                {
+                    ["type"] = "field",
+                    ["inboundTag"] = new JArray("api-in"),
+                    ["outboundTag"] = "api"
+                },
+                new JObject
+                {
+                    ["type"] = "field",
+                    ["outboundTag"] = "block",
+                    ["domain"] = new JArray("geosite:category-ads-all")
+                },
+                new JObject
+                {
+                    ["type"] = "field",
+                    ["outboundTag"] = "direct",
+                    ["domain"] = new JArray("geosite:private")
+                },
+                new JObject
+                {
+                    ["type"] = "field",
+                    ["outboundTag"] = "direct",
+                    ["ip"] = new JArray("geoip:private")
+                }
+            };
+
+            var (domains, ips) = SplitDirectEntries(routing.DirectDomains);
+            if (domains.Count > 0)
+                rules.Add(new JObject { ["type"] = "field", ["outboundTag"] = "direct", ["domain"] = new JArray(domains) });
+            if (ips.Count > 0)
+                rules.Add(new JObject { ["type"] = "field", ["outboundTag"] = "direct", ["ip"] = new JArray(ips) });
+
+            if (routing.ChinaDirect)
+            {
+                rules.Add(new JObject { ["type"] = "field", ["outboundTag"] = "direct", ["domain"] = new JArray("geosite:cn") });
+                rules.Add(new JObject { ["type"] = "field", ["outboundTag"] = "direct", ["ip"] = new JArray("geoip:cn") });
+            }
+
+            return rules;
+        }
+
+        private static readonly string[] DomainRulePrefixes = { "domain:", "full:", "regexp:", "keyword:", "geosite:", "ext:" };
+
+        /// <summary>
+        /// Turns user entries into v2ray matchers. "example.com" means the site and all its
+        /// subdomains; IPs and CIDRs become IP rules; explicit v2ray prefixes pass through.
+        /// </summary>
+        public static (List<string> domains, List<string> ips) SplitDirectEntries(IEnumerable<string> entries)
+        {
+            var domains = new List<string>();
+            var ips = new List<string>();
+            foreach (var raw in RoutingOptions.NormalizeList(entries))
+            {
+                var e = raw.ToLowerInvariant();
+                // Tolerate pasted URLs: strip scheme, path, port.
+                if (e.Contains("://")) e = e.Substring(e.IndexOf("://", StringComparison.Ordinal) + 3);
+                int slash = e.IndexOf('/');
+                bool looksCidr = slash > 0 && e.Substring(slash + 1).All(char.IsDigit) && e.Substring(0, slash).Any(c => c == '.' || c == ':');
+                if (slash > 0 && !looksCidr) e = e.Substring(0, slash);
+                if (e.Length == 0) continue;
+
+                if (e.StartsWith("geoip:", StringComparison.Ordinal) || looksCidr || System.Net.IPAddress.TryParse(e, out _))
+                {
+                    ips.Add(e);
+                    continue;
+                }
+                if (DomainRulePrefixes.Any(p => e.StartsWith(p, StringComparison.Ordinal)))
+                {
+                    domains.Add(e);
+                    continue;
+                }
+                int colon = e.LastIndexOf(':');
+                if (colon > 0 && e.Substring(colon + 1).All(char.IsDigit)) e = e.Substring(0, colon);
+                if (e.StartsWith("*.", StringComparison.Ordinal)) e = e.Substring(2);
+                if (e.StartsWith(".", StringComparison.Ordinal)) e = e.Substring(1);
+                if (e.Length > 0) domains.Add("domain:" + e);
+            }
+            return (domains, ips);
         }
 
         private static JObject BuildProxyOutbound(ServerProfile profile)

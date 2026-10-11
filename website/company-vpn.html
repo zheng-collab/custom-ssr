@@ -142,6 +142,12 @@
     <b>没有账号 · No account yet:</b> 请联系 IT 开通（需要 <code>gateway.access</code> 权限）。
     <span class="en">Ask IT to enable your account.</span>
   </div>
+  <div class="note">
+    <b>某个网站提示“IP 受限 / 地区不支持” · A site rejects the VPN's IP</b>（网上银行、视频网站、有 IP 白名单的系统）：
+    电脑版在 <b>Settings → Sites that bypass the VPN</b> 里每行填一个网站（如 <code>chase.com</code>），该网站就会直连；国内网站打不开则把代理模式切到 <b>Rule-Based</b>。
+    手机版 v2rayNG：<b>设置 → 路由设置 → 绕过局域网及大陆地址</b>，其他网站加到“直连域名”。
+    <span class="en">Desktop: Settings → Sites that bypass the VPN, one domain per line. Phone (v2rayNG): Settings → Routing → Bypass LAN and mainland China.</span>
+  </div>
 
   <footer>
     SecureGateway 支持 V2Ray (VMess) 与 Shadowsocks 协议，内置 v2ray-core，无需另外安装。

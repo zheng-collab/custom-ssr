@@ -20,6 +20,7 @@ namespace SecureGateway.Services
         private ServerProfile _activeServer;
         private Timer _statsTimer;
         private bool _disposed;
+        private bool _restartingEngine;
 
         public ConnectionStats Stats { get; private set; } = new();
         public bool IsConnected => _currentEngine?.Status == EngineStatus.Running;
@@ -60,7 +61,7 @@ namespace SecureGateway.Services
             }
 
             _activeServer = runtime;
-            _currentEngine = new V2RayEngine();
+            _currentEngine = new V2RayEngine(RoutingOptions.From(_configManager.Config));
             _currentEngine.StatusChanged += OnEngineStatusChanged;
             _currentEngine.LogReceived += OnEngineLogReceived;
 
@@ -171,7 +172,7 @@ namespace SecureGateway.Services
             }
         }
 
-        public void ChangeProxyMode(ProxyMode mode)
+        public async Task ChangeProxyModeAsync(ProxyMode mode)
         {
             _configManager.Config.ProxyMode = mode;
             _configManager.Save();
@@ -180,7 +181,54 @@ namespace SecureGateway.Services
             {
                 _systemProxy.ConfigureForMode(mode, _activeServer.LocalHttpPort, _activeServer.LocalSocksPort);
                 _logger.Info($"Proxy mode changed to {mode}.");
+                await ApplyRoutingAsync();
             }
+        }
+
+        /// <summary>
+        /// Pushes the current routing (proxy mode + bypass list) into the running engine.
+        /// v2ray-core cannot reload its config, so this restarts the local process; the
+        /// intermediate Stopped/Starting states are hidden from the UI and the tunnel is back
+        /// within about a second. No-op when disconnected or when nothing changed.
+        /// </summary>
+        public async Task<bool> ApplyRoutingAsync()
+        {
+            if (!IsConnected || _activeServer == null || _currentEngine is not V2RayEngine engine) return true;
+
+            var wanted = RoutingOptions.From(_configManager.Config);
+            if (wanted.Equals(engine.Routing)) return true;
+
+            engine.Routing = wanted;
+            _logger.Info("Applying routing change...");
+            _restartingEngine = true;
+            try
+            {
+                await engine.StartAsync(_activeServer);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Routing change failed: {ex.Message}");
+            }
+            finally
+            {
+                _restartingEngine = false;
+            }
+
+            if (engine.Status != EngineStatus.Running)
+            {
+                var msg = "Connection lost while applying the routing change. Please reconnect.";
+                TearDownEngine();
+                _systemProxy.DisableProxy();
+                StatusChanged?.Invoke(this, new EngineStatusChangedEventArgs(EngineStatus.Error, msg));
+                return false;
+            }
+
+            _systemProxy.ConfigureForMode(_configManager.Config.ProxyMode, _activeServer.LocalHttpPort, _activeServer.LocalSocksPort);
+            HttpClients.UseProxy(_activeServer.LocalHttpPort);
+            _logger.Info(wanted.ChinaDirect
+                ? $"Routing: China sites + {wanted.DirectDomains.Count} listed site(s) direct, rest through the tunnel."
+                : $"Routing: {wanted.DirectDomains.Count} listed site(s) direct, rest through the tunnel.");
+            return true;
         }
 
         /// <summary>
@@ -225,6 +273,9 @@ namespace SecureGateway.Services
 
         private void OnEngineStatusChanged(object sender, EngineStatusChangedEventArgs e)
         {
+            // During a routing restart the engine goes Stopped -> Starting -> Running in
+            // well under a second; only the final state (or an error) is worth showing.
+            if (_restartingEngine && e.Status != EngineStatus.Error) return;
             if (e.Status == EngineStatus.Error)
                 HttpClients.UseProxy(null);
             StatusChanged?.Invoke(this, e);

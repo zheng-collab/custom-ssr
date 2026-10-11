@@ -121,6 +121,30 @@ namespace SecureGateway.Mac.Smoke
                 Expect(!SecureGateway.Services.AuthService.IsNetworkError(new InvalidOperationException("x")), "logic error not classified as network");
             });
 
+            Check("Routing rules (split tunnel)", () =>
+            {
+                var global = SecureGateway.Core.Engines.V2RayEngine.BuildRoutingRules(new RoutingOptions());
+                var globalJson = global.ToString();
+                Expect(!globalJson.Contains("geosite:cn") && !globalJson.Contains("geoip:cn"), "Global: no China-direct rules");
+                Expect(globalJson.Contains("geosite:private") && globalJson.Contains("geoip:private"), "Global: LAN stays direct");
+
+                var cfg = new AppConfig { ProxyMode = ProxyMode.Rule, DirectDomains = new System.Collections.Generic.List<string>
+                    { " https://www.chase.com/login ", "Netflix.com", "*.example.org", "10.0.0.0/8", "203.0.113.7", "geosite:apple", "", "# comment", "netflix.com" } };
+                var rule = SecureGateway.Core.Engines.V2RayEngine.BuildRoutingRules(RoutingOptions.From(cfg));
+                var ruleJson = rule.ToString();
+                Expect(ruleJson.Contains("geosite:cn") && ruleJson.Contains("geoip:cn"), "Rule-Based: China-direct rules present");
+                var (domains, ips) = SecureGateway.Core.Engines.V2RayEngine.SplitDirectEntries(cfg.DirectDomains);
+                Expect(domains.SequenceEqual(new[] { "domain:www.chase.com", "domain:netflix.com", "domain:example.org", "geosite:apple" }),
+                    "bypass list: URLs/wildcards normalised, duplicates dropped (" + string.Join(" ", domains) + ")");
+                Expect(ips.SequenceEqual(new[] { "10.0.0.0/8", "203.0.113.7" }), "bypass list: IPs and CIDRs become ip rules");
+                // user bypass rules must come before the China rules and after the LAN rules
+                int lan = ruleJson.IndexOf("geoip:private"), user = ruleJson.IndexOf("domain:netflix.com"), cn = ruleJson.IndexOf("geosite:cn");
+                Expect(lan < user && user < cn, "rule order: LAN -> bypass list -> China");
+
+                Expect(RoutingOptions.From(cfg).Equals(RoutingOptions.From(cfg)), "RoutingOptions equality (same config)");
+                Expect(!RoutingOptions.From(cfg).Equals(RoutingOptions.From(new AppConfig { ProxyMode = ProxyMode.Global })), "RoutingOptions inequality (mode changed)");
+            });
+
             Check("ServerEditWindow", () =>
             {
                 var w = new ServerEditWindow(new ServerProfile { Name = "Test", Address = "203.0.113.5" });
