@@ -135,6 +135,10 @@ jobs:
           path: dist
       - name: Add the staff manual next to the installers
         run: mkdir -p dist/docs && cp USER_MANUAL_ZH.pdf dist/docs/
+      - name: Write SHA256SUMS.txt so downloads can be verified
+        run: |
+          (cd dist && sha256sum windows/* macos-arm64/* macos-x64/* docs/* | sed 's#  [^ ]*/#  #') > dist/docs/SHA256SUMS.txt
+          cat dist/docs/SHA256SUMS.txt
       - name: List files
         run: find dist -type f | sort
       - name: Create release (or add files to an existing one) and attach installers

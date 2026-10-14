@@ -550,6 +550,7 @@ It installs the latest `shadowsocks-rust` server as a static binary from GitHub 
 | Problem | Solution |
 |---------|----------|
 | App won't open at all (Smart App Control / SmartScreen) | See "If Windows refuses to start it" under Installation. |
+| "VPN engine missing" / "v2ray-core not found" | Either the download was incomplete (WinRAR reports a checksum error on `v2ray.exe` when extracting the zip; common for large GitHub downloads from China) or antivirus quarantined the engine. Re-download `SecureGateway-Setup.exe`, compare its size with the release page or its hash with `SHA256SUMS.txt` (`Get-FileHash SecureGateway-Setup.exe` in PowerShell), and reinstall. For antivirus, restore the file from quarantine and add the install folder to the exclusions. |
 | Engine fails to start | Ensure the `v2ray-core` folder from the release package is still next to `SecureGateway.exe` (re-extract the package if it was moved or deleted by antivirus). On Windows 11 with Smart App Control, `v2ray.exe` must be signed too; an unsigned engine is blocked silently. |
 | Connection timeout | Verify the server address, port, and that the server is running. |
 | TLS handshake failure | Check that TLS settings (SNI, certificates) match your server configuration. |
@@ -1131,6 +1132,7 @@ Startup Script 会将管理员密码保存在 Vultr 中；请使用一个仅拥�
 | 问题 | 解决方案 |
 |------|----------|
 | 应用完全无法打开（Smart App Control / SmartScreen） | 参见"安装"一节中的"如果 Windows 拒绝启动"。 |
+| "VPN engine missing" / "v2ray-core not found" | 要么下载不完整（解压 ZIP 时 WinRAR 提示 `v2ray.exe` 校验和错误；在国内下载 GitHub 大文件时很常见），要么杀毒软件隔离了引擎。请重新下载 `SecureGateway-Setup.exe`，核对文件大小与发布页一致，或在 PowerShell 中用 `Get-FileHash SecureGateway-Setup.exe` 与发布页的 `SHA256SUMS.txt` 对比，然后重新安装。若是杀毒软件，请从隔离区还原并把安装目录加入排除项。 |
 | 引擎启动失败 | 确保发布包中的 `v2ray-core` 文件夹仍与 `SecureGateway.exe` 在同一目录（若被移动或被杀毒软件删除，请重新解压发布包）。在开启 Smart App Control 的 Windows 11 上，`v2ray.exe` 也必须签名，否则会被静默阻止。 |
 | 连接超时 | 验证服务器地址、端口，确认服务器正在运行。 |
 | TLS 握手失败 | 检查 TLS 设置（SNI、证书）是否与服务器配置匹配。 |

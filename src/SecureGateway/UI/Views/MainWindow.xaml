@@ -119,7 +119,8 @@
 
                 <!-- Status text -->
                 <TextBlock Grid.Column="1" Text="{Binding StatusText}" VerticalAlignment="Center"
-                           HorizontalAlignment="Center" Foreground="#A6ADC8" FontSize="13"/>
+                           HorizontalAlignment="Center" Foreground="#A6ADC8" FontSize="13" Margin="12,0"
+                           TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusText}"/>
 
                 <!-- User info + Connect -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">

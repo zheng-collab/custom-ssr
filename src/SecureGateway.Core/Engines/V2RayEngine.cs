@@ -69,7 +69,9 @@ namespace SecureGateway.Core.Engines
             if (!File.Exists(_v2rayPath))
             {
                 SetStatus(EngineStatus.Error,
-                    $"v2ray-core not found at {_v2rayPath}. Reinstall the app or place the v2ray binary in the v2ray-core folder.");
+                    "VPN engine missing: the download was probably incomplete or antivirus removed it. " +
+                    "Re-download SecureGateway-Setup.exe and reinstall, or restore v2ray from antivirus quarantine.");
+                Log($"v2ray-core not found at {_v2rayPath}", "Error");
                 return;
             }
             EnsureExecutable();
