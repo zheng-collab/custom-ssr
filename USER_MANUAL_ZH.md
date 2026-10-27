@@ -11,7 +11,7 @@
 1. [SecureGateway 是什么](#1-securegateway-是什么)
 2. [安装前准备](#2-安装前准备)
 3. [安装](#3-安装)
-4. [Windows 阻止程序运行时怎么办](#4-windows-阻止程序运行时怎么办)
+4. [程序被系统阻止运行时怎么办（Windows / macOS）](#4-程序被系统阻止运行时怎么办windows--macos)
 5. [首次登录](#5-首次登录)
 6. [忘记密码 / 重置密码](#6-忘记密码--重置密码)
 7. [连接与断开](#7-连接与断开)
@@ -78,7 +78,7 @@ Windows 设置 → 应用 → 已安装的应用 → 找到 SecureGateway → �
 
 ---
 
-## 4. Windows 阻止程序运行时怎么办
+## 4. 程序被系统阻止运行时怎么办（Windows / macOS）
 
 由于程序目前尚未进行商业代码签名，Windows 的安全机制可能会在首次运行时进行拦截。以下是三种常见情况及处理方法。
 
@@ -125,12 +125,53 @@ Windows 11 部分电脑（通常是 2022 年后出厂并全新安装系统的电
 2. 下载完成后右键文件 → 属性，核对大小是否与发布页上显示的完全一致；也可以在 PowerShell 中运行 `Get-FileHash SecureGateway-Setup.exe`，把结果与发布页附带的 `SHA256SUMS.txt` 对比。
 3. 如果网络很差，可以请在国外的同事下载后通过公司网盘转发；也可以用浏览器的"断点续传"或下载工具重试。
 
-**原因二：杀毒软件隔离了引擎。** 个别杀毒软件会把加密引擎 `v2ray.exe` 误判为风险文件并隔离。表现为：程序可以打开，但点击 Connect 后提示引擎缺失，日志显示 "v2ray-core not found"。处理方法：
+**原因二：杀毒软件隔离了引擎。** 个别杀毒软件会把加密引擎 `v2ray.exe` 误判为风险文件并隔离。表现为：程序可以打开，但点击 Connect 后提示引擎缺失，日志显示 "v2ray-core not found"。
+
+> 从 **v1.0.4** 起，`SecureGateway.exe` 和 `v2ray.exe` 都已做数字签名，且安装程序会自动把安装目录加入 Windows Defender 排除项，被误隔离的情况已大幅减少。前提是该电脑已经信任了签名证书（见 **4.4**）。若仍然发生，用下面的方法处理：
 
 1. 打开 **Windows 安全中心 → 病毒和威胁防护 → 保护历史记录**，找到对被隔离文件的记录，选择 **允许 / 还原**。
 2. 或者在 **病毒和威胁防护设置 → 排除项** 中，把 SecureGateway 的安装文件夹添加为排除项。
 3. 若使用第三方杀毒软件（360、腾讯电脑管家等），请在其隔离区中还原该文件并加入白名单。
 4. 如果文件已被删除，重新运行安装程序即可恢复。
+
+### 4.4 管理员：信任 SecureGateway 签名证书（v1.0.4 起，仅需每台一次）
+
+从 v1.0.4 起，程序使用公司自签名证书 **Fourth Zodiac SecureGateway** 做了数字签名。签名能让 Windows Defender / SmartScreen 不再把程序和引擎当作"来历不明"而拦截或删除，但自签名证书需要在每台电脑上**信任一次**，签名才会被系统认可。普通员工无需操作，由管理员在每台电脑上执行一次，或用域组策略统一下发。
+
+**单台电脑（管理员）：**
+
+1. 从发布页下载公钥证书 **`SecureGateway-CodeSign.cer`**（与安装包放在同一发布页）。
+2. 右键"开始"菜单 → **终端（管理员）** 或 **PowerShell（管理员）**，进入该文件所在目录，运行：
+
+   ```powershell
+   Import-Certificate -FilePath .\SecureGateway-CodeSign.cer -CertStoreLocation Cert:\LocalMachine\Root
+   Import-Certificate -FilePath .\SecureGateway-CodeSign.cer -CertStoreLocation Cert:\LocalMachine\TrustedPublisher
+   ```
+
+   仓库 `scripts\trust-cert.ps1` 已把这两步封装好，也可以直接运行：
+   `.\trust-cert.ps1 -CerPath .\SecureGateway-CodeSign.cer`
+
+3. 验证：右键 `SecureGateway.exe` → **属性** → **数字签名** 选项卡，应显示签名者 **Fourth Zodiac SecureGateway**、且"此数字签名正常"。
+
+**批量部署（有域控/AD 的环境）：** 把 `SecureGateway-CodeSign.cer` 通过组策略导入
+**计算机配置 → 策略 → Windows 设置 → 安全设置 → 公钥策略 → 受信任的发布者**，同时导入到 **受信任的根证书颁发机构**。所有加入域的电脑会自动信任，无需逐台操作。
+
+> 说明：这是信任**公司自己**的证书，不会降低系统其它安全设置。自签名证书只在本公司已信任的电脑上有效，不会让程序在外部陌生电脑上"被信任"——这正是内部使用所需要的。证书有效期 5 年，到期后需重新签名并重新下发新的 `.cer`。
+
+### 4.5 macOS：首次打开提示"已损坏"或"无法验证开发者"
+
+macOS 版做了签名，但**未经 Apple 公证**（公证需要每年 99 美元的 Apple 开发者账号）。因此从网上下载的 `.dmg` / `.app` 会被系统门禁（Gatekeeper）标记为"隔离"，**首次打开**可能提示"无法打开，因为无法验证开发者"，或"已损坏，应移到废纸篓"。这不是文件真的损坏，按下面任一方法处理即可：
+
+1. 在"访达"中找到 **SecureGateway.app**，按住 **Control** 键点击（或右键）→ **打开** → 在弹窗里再点一次 **打开**。此后即可正常双击使用。
+2. 或打开"终端"，运行（路径换成实际位置）：
+
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/SecureGateway.app
+   ```
+
+3. 提示"已损坏"时同样用上面的 `xattr` 命令解决。
+
+> 说明：macOS 上没有 Windows 那种"信任证书"的步骤，上述操作针对的是系统门禁，不影响安全。若今后购买 Apple 开发者账号并对发布包做公证，这些提示会自动消失。
 
 ---
 
