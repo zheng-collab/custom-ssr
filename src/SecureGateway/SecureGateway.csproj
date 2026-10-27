@@ -13,10 +13,13 @@
     <Description>Enterprise VPN/Proxy Client with V2Ray and Shadowsocks support</Description>
     <Company>SecureGateway</Company>
     <Product>SecureGateway VPN Client</Product>
-    <PublishSingleFile>true</PublishSingleFile>
+    <!-- Publish as a plain folder (installed by the Inno Setup installer), NOT a single-file
+         self-extracting exe. A self-extracting bundle unpacks native DLLs + the v2ray engine to
+         %TEMP% at every launch, which antivirus heuristics treat like a dropper and quarantine.
+         A normal folder of files next to the engine scans far more cleanly. -->
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <PublishSingleFile>false</PublishSingleFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -31,7 +34,6 @@
   <ItemGroup>
     <Content Include="v2ray-core\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </Content>
   </ItemGroup>
 

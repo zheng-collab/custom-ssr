@@ -1,12 +1,14 @@
 # SecureGateway Build Script
 # Run from the repository root: .\scripts\build.ps1
 #
-# Code signing (needed for Windows 11 Smart App Control / clean SmartScreen):
-#   .\scripts\build.ps1 -Publish -SignCert C:\certs\company.pfx
+# Code signing (reduces antivirus false positives — see docs\ANTIVIRUS.md):
+#   .\scripts\make-selfsigned-cert.ps1                                   (once; free, internal use)
+#   .\scripts\build.ps1 -Publish -SignCert certs\SecureGateway-CodeSign.pfx
 #     -> prompts for the PFX password, signs SecureGateway.exe and v2ray-core\v2ray.exe
 #   .\scripts\build.ps1 -Publish -SignThumbprint 1A2B...   (cert already in the user store / HSM token)
 # Requires signtool.exe from the Windows SDK (installed with Visual Studio, or
 # "Windows 10/11 SDK" from the Visual Studio Installer).
+# A self-signed cert must be trusted on each PC (scripts\trust-cert.ps1); a paid cert need not be.
 #
 # Distribution packages (both imply -Publish):
 #   .\scripts\build.ps1 -Zip          -> build\SecureGateway-win-x64.zip
@@ -119,12 +121,12 @@ if ($Publish) {
         $running | Stop-Process -Force -ErrorAction SilentlyContinue
         Start-Sleep -Seconds 2
     }
+    # Folder publish (not a single-file self-extracting exe) — see SecureGateway.csproj for why.
     dotnet publish "$ProjectDir\SecureGateway.csproj" `
         -c $Configuration `
         -r win-x64 `
         --self-contained true `
-        -p:PublishSingleFile=true `
-        -p:IncludeNativeLibrariesForSelfExtract=true `
+        -p:PublishSingleFile=false `
         -o $PublishDir `
         --nologo
 

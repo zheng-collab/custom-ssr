@@ -119,6 +119,20 @@ namespace SecureGateway.Mac.Smoke
                     new System.Security.Authentication.AuthenticationException("boom"));
                 Expect(SecureGateway.Services.AuthService.IsNetworkError(ssl), "SSL failure classified as network error");
                 Expect(!SecureGateway.Services.AuthService.IsNetworkError(new InvalidOperationException("x")), "logic error not classified as network");
+
+                // Sign-in on a restricted network reads the user id / e-mail from the token locally
+                // (the SDK call that used to do this bypasses the tunnel and is reset). A real
+                // Supabase access token is a JWT: header.payload.signature, each segment base64url.
+                static string B64Url(string s) => Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(s))
+                    .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+                var jwt = B64Url("{\"alg\":\"HS256\",\"typ\":\"JWT\"}") + "." +
+                          B64Url("{\"sub\":\"dca40ddd-b767-4433-8389-656eb0f2d732\",\"email\":\"staff@fourthzodiac.com\",\"role\":\"authenticated\"}") +
+                          ".sig_not_verified";
+                var (uid, mail) = SecureGateway.Services.AuthService.ReadJwtClaims(jwt);
+                Expect(uid == "dca40ddd-b767-4433-8389-656eb0f2d732" && mail == "staff@fourthzodiac.com",
+                    "JWT claims read locally (sub + email)");
+                var (nuid, nmail) = SecureGateway.Services.AuthService.ReadJwtClaims("not-a-jwt");
+                Expect(nuid == null && nmail == null, "garbage token -> no claims, no crash");
             });
 
             Check("Routing rules (split tunnel)", () =>

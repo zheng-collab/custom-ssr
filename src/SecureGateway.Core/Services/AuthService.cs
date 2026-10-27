@@ -221,34 +221,98 @@ namespace SecureGateway.Services
 
                 if (error != null)
                     return AuthResult.Failure(error);
+                if (string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(refreshToken))
+                    return AuthResult.Failure("Sign in failed. The server did not return a session.");
 
-                var session = await _client.Auth.SetSession(accessToken, refreshToken);
-                if (session?.User == null)
-                    return AuthResult.Failure("Sign in failed. Could not establish session.");
+                // The user id and e-mail are inside the access token; read them locally instead of
+                // calling the Supabase SDK. The SDK's internal HttpClient ignores our tunnel proxy,
+                // so on a restricted network SetSession()'s GetUser call goes out direct and is
+                // reset — the token POST above already succeeded through the tunnel. Everything we
+                // do below uses HttpClients.Shared, which does route through the tunnel.
+                var (userId, tokenEmail) = ReadJwtClaims(accessToken);
+                if (string.IsNullOrEmpty(userId))
+                    return AuthResult.Failure("Sign in failed. The session token was not understood.");
 
-                var access = await CheckGatewayAccessAsync(session.User.Id);
+                var access = await CheckGatewayAccessAsync(userId, accessToken);
                 if (access != true)
-                {
-                    await SignOutSdkAsync();
                     return AuthResult.Failure(access == false
                         ? "Access denied. Your account does not have gateway access."
                         : "Could not verify account permissions. Please try again.");
-                }
 
                 _loginTimestampUtc = DateTime.UtcNow;
-                await PersistSessionAsync(session);
+
+                // Hand the verified tokens to the SDK (needed for auto-refresh and the shared-server
+                // sync). If the SDK can't reach the server directly, keep them as an offline session;
+                // OnTunnelUp -> EnsureSessionAsync upgrades it once the system proxy is active.
+                await EstablishSessionOrGoOfflineAsync(accessToken, refreshToken, tokenEmail);
 
                 if (rememberMe)
                     SaveCredentials(email, password);
                 else
                     ClearCredentials();
 
-                _offlineSession = null;
-                return AuthResult.Success(session.User.Email ?? email);
+                return AuthResult.Success(!string.IsNullOrEmpty(tokenEmail) ? tokenEmail : email);
             }
             catch (Exception ex)
             {
                 return ConnectionFailure(ex);
+            }
+        }
+
+        /// <summary>
+        /// Gives the verified token pair to the SDK session. On a restricted network the SDK's own
+        /// request is reset (it bypasses our tunnel); the tokens are already verified via REST, so
+        /// they are kept as an offline session and persisted, and verified through the tunnel later.
+        /// </summary>
+        private async Task EstablishSessionOrGoOfflineAsync(string accessToken, string refreshToken, string email)
+        {
+            try
+            {
+                var session = await _client.Auth.SetSession(accessToken, refreshToken);
+                if (session?.User != null)
+                {
+                    _offlineSession = null;
+                    await PersistSessionAsync(session);
+                    return;
+                }
+            }
+            catch
+            {
+                // Fall through: keep the verified tokens as an offline session.
+            }
+
+            _offlineSession = new SavedSession
+            {
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                Email = email ?? "",
+                LoginTimestampUtc = _loginTimestampUtc.ToString("o")
+            };
+            await PersistSavedSessionAsync(_offlineSession);
+        }
+
+        /// <summary>Reads the "sub" (user id) and "email" claims from a JWT without a network call.</summary>
+        public static (string userId, string email) ReadJwtClaims(string jwt)
+        {
+            try
+            {
+                var parts = jwt?.Split('.');
+                if (parts == null || parts.Length < 2) return (null, null);
+
+                var payload = parts[1].Replace('-', '+').Replace('_', '/');
+                switch (payload.Length % 4)
+                {
+                    case 2: payload += "=="; break;
+                    case 3: payload += "="; break;
+                }
+
+                var json = Encoding.UTF8.GetString(Convert.FromBase64String(payload));
+                var obj = JObject.Parse(json);
+                return (obj["sub"]?.ToString(), obj["email"]?.ToString());
+            }
+            catch
+            {
+                return (null, null);
             }
         }
 
@@ -534,7 +598,7 @@ namespace SecureGateway.Services
         }
 
         /// <summary>true = allowed, false = denied, null = could not determine.</summary>
-        private async Task<bool?> CheckGatewayAccessAsync(string userId)
+        private async Task<bool?> CheckGatewayAccessAsync(string userId, string bearerToken = null)
         {
             if (string.IsNullOrEmpty(userId)) return false;
 
@@ -543,7 +607,8 @@ namespace SecureGateway.Services
                 using var request = new HttpRequestMessage(HttpMethod.Get,
                     $"{SupabaseUrl}/rest/v1/profiles?id=eq.{Uri.EscapeDataString(userId)}&select=permissions");
                 request.Headers.Add("apikey", SupabaseAnonKey);
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", AccessToken);
+                request.Headers.Authorization = new AuthenticationHeaderValue(
+                    "Bearer", string.IsNullOrEmpty(bearerToken) ? AccessToken : bearerToken);
 
                 using var response = await HttpClients.Shared.SendAsync(request);
                 if (!response.IsSuccessStatusCode)
@@ -566,18 +631,20 @@ namespace SecureGateway.Services
             try { await _client.Auth.SignOut(); } catch { }
         }
 
-        private async Task PersistSessionAsync(Session session)
+        private Task PersistSessionAsync(Session session) =>
+            PersistSavedSessionAsync(new SavedSession
+            {
+                AccessToken = session.AccessToken ?? "",
+                RefreshToken = session.RefreshToken ?? "",
+                Email = session.User?.Email ?? "",
+                LoginTimestampUtc = _loginTimestampUtc.ToString("o")
+            });
+
+        private static async Task PersistSavedSessionAsync(SavedSession saved)
         {
             try
             {
                 Directory.CreateDirectory(AppDataDir);
-                var saved = new SavedSession
-                {
-                    AccessToken = session.AccessToken ?? "",
-                    RefreshToken = session.RefreshToken ?? "",
-                    Email = session.User?.Email ?? "",
-                    LoginTimestampUtc = _loginTimestampUtc.ToString("o")
-                };
                 await File.WriteAllTextAsync(TokenFile, JsonConvert.SerializeObject(saved));
             }
             catch { }
