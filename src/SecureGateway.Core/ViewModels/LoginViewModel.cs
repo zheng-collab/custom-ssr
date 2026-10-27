@@ -171,7 +171,12 @@ namespace SecureGateway.UI.ViewModels
             }
 
             if (!string.IsNullOrEmpty(Email) && !string.IsNullOrEmpty(Password))
+            {
                 await SubmitAsync();
+                // SubmitAsync raises Authenticated and clears this on success; if it failed, drop the
+                // "Signing in through it..." line so the screen shows the real error, not a stuck spinner.
+                if (StatusIsError) BootstrapStatus = "";
+            }
             else
                 ShowInfo("Connected through the server. Enter your e-mail and password to sign in.");
         }

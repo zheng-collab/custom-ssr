@@ -57,6 +57,10 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+; The VPN engine (v2ray.exe) is a legitimate proxy tool that Windows Defender sometimes
+; quarantines on a heuristic. Excluding the install folder stops Defender from deleting it.
+; Only affects Defender; harmless if a third-party antivirus is used instead.
+Name: "defenderexclusion"; Description: "Add this folder to Windows Defender exclusions (prevents the VPN engine being quarantined)"; GroupDescription: "Antivirus:"
 
 [Files]
 ; Everything the publish step produced: SecureGateway.exe plus the v2ray-core folder.
@@ -68,11 +72,21 @@ Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
+; Register the install folder as a Defender exclusion (best-effort; silently ignored if Defender
+; is disabled or a third-party AV is in use). Runs elevated because the installer requires admin.
+Filename: "powershell.exe"; \
+  Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""try {{ Add-MpPreference -ExclusionPath '{app}' -ErrorAction Stop }} catch {{ }}"""; \
+  StatusMsg: "Adding Windows Defender exclusion..."; \
+  Flags: runhidden waituntilterminated; Tasks: defenderexclusion
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
 ; Make sure the engine is not left running when the app is removed.
 Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM v2ray.exe"; Flags: runhidden; RunOnceId: "KillV2Ray"
+; Remove the Defender exclusion we may have added (best-effort).
+Filename: "powershell.exe"; \
+  Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""try {{ Remove-MpPreference -ExclusionPath '{app}' -ErrorAction Stop }} catch {{ }}"""; \
+  Flags: runhidden; RunOnceId: "RemoveDefenderExclusion"
 
 [UninstallDelete]
 ; Per-user data (settings, saved session) lives in %APPDATA%\SecureGateway; leave it
