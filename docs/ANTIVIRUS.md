@@ -32,6 +32,11 @@ Authorities*). Keep the `.pfx` secret — it is the signing key and is git-ignor
 
 ### Let GitHub sign every release (recommended)
 
+Easiest: on the PC where the certificate was made, run
+`irm https://raw.githubusercontent.com/zheng-collab/custom-ssr/HEAD/scripts/export-signing-secrets.ps1 | iex`.
+It finds the key in your certificate store (no .pfx or old password needed), exports it with a new
+random password and sets both secrets below for you. Manual way:
+
 Releases built by GitHub Actions are only signed when the workflow has the key. Add it once as
 two repository secrets (GitHub → **Settings → Secrets and variables → Actions → New repository
 secret**):
