@@ -87,14 +87,20 @@ if ($ghReady) {
 }
 if (-not $ghReady) {
     Write-Host ''
-    Write-Host 'Two short paste steps. A GitHub page opens each time; sign in to GitHub if it asks.' -ForegroundColor Green
+    Write-Host 'Two short paste steps. Both are needed: the key and the password belong together.' -ForegroundColor Green
+    Write-Host 'A GitHub page opens each time; sign in to GitHub if it asks.'
+    $step = 0
     foreach ($s in @(@{ Name = 'SIGN_PFX_BASE64'; Value = $base64 }, @{ Name = 'SIGN_PFX_PASSWORD'; Value = $password })) {
+        $step++
         Set-Clipboard -Value $s.Value
-        Start-Process $SecretsPage
+        Start-Process "https://github.com/$Repo/settings/secrets/actions"
         Write-Host ''
-        Write-Host "  Name:   $($s.Name)" -ForegroundColor Yellow
-        Write-Host '  Secret: press Ctrl+V (it is already on the clipboard), then click "Add secret".'
-        Read-Host  '  Press Enter here when done'
+        Write-Host "  Step $step of 2:  $($s.Name)" -ForegroundColor Yellow
+        Write-Host "  - If $($s.Name) is already in the list: click the pencil next to it."
+        Write-Host '    Otherwise: click "New repository secret" and type the name above.'
+        Write-Host '  - Click in the Secret box, press Ctrl+V (it is already on the clipboard),'
+        Write-Host '    then click "Add secret" / "Update secret".'
+        Read-Host  '  Press Enter here when GitHub shows it saved'
     }
     Set-Clipboard -Value ' '
     Say 'Clipboard cleared.'
