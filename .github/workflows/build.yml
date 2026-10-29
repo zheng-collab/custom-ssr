@@ -211,3 +211,7 @@ jobs:
               --generate-notes \
               dist/windows/* dist/macos-arm64/* dist/macos-x64/* dist/docs/*
           fi
+          # Only now, with every file attached, make it the release that /releases/latest/download/
+          # links resolve to. A release created on the website should be ticked "pre-release" so a
+          # failed build never leaves an empty "latest" release (all download links would 404).
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --prerelease=false --draft=false --latest
