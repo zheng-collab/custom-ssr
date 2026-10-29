@@ -32,16 +32,34 @@ $TunnelDomain = 'office.reverse.securegateway'
 function Say($m)  { Write-Host "==> $m" -ForegroundColor Cyan }
 function Fail($m) { Write-Host "ERROR: $m" -ForegroundColor Red; throw $m }
 
+# Our engine processes: the launcher loop (powershell running run-exit.ps1) and v2ray.exe
+# from the install folder. Win32_Process gives ExecutablePath for SYSTEM processes too.
+function Get-ExitProcesses {
+    Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+        ($_.Name -eq 'powershell.exe' -and $_.CommandLine -like '*run-exit.ps1*') -or
+        ($_.Name -eq 'v2ray.exe' -and $_.ExecutablePath -and
+         $_.ExecutablePath.StartsWith($InstallDir, [StringComparison]::OrdinalIgnoreCase))
+    }
+}
+
 function Stop-Exit {
     if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
         Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
     }
-    Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
-        Where-Object { $_.CommandLine -like "*run-exit.ps1*" } |
-        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
-    Get-Process v2ray -ErrorAction SilentlyContinue |
-        Where-Object { $_.Path -and $_.Path.StartsWith($InstallDir, [StringComparison]::OrdinalIgnoreCase) } |
-        Stop-Process -Force -ErrorAction SilentlyContinue
+    for ($try = 0; $try -lt 5; $try++) {
+        $left = @(Get-ExitProcesses)
+        if (-not $left) { return }
+        # launcher first, otherwise its loop starts v2ray again
+        $left | Sort-Object { $_.Name -ne 'powershell.exe' } | ForEach-Object {
+            & taskkill.exe /F /T /PID $_.ProcessId 2>&1 | Out-Null
+        }
+        Start-Sleep -Seconds 1
+    }
+    $left = @(Get-ExitProcesses)
+    if ($left) {
+        $ids = ($left | ForEach-Object { "$($_.Name) $($_.ProcessId)" }) -join ', '
+        Fail "could not stop the previous engine ($ids). Restart the computer and run the command again."
+    }
 }
 
 # End-to-end check. A TCP connection to the relay proves nothing (the relay holds a
@@ -217,7 +235,15 @@ $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoi
     -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew -StartWhenAvailable
 Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Principal $principal `
     -Settings $settings -Description 'Tunnel to the SecureGateway VPS relay (office exit).' -Force | Out-Null
+$startedAt = Get-Date
 Start-ScheduledTask -TaskName $TaskName
+$fresh = $null
+for ($i = 0; $i -lt 10 -and -not $fresh; $i++) {
+    Start-Sleep -Seconds 1
+    $fresh = Get-ExitProcesses | Where-Object { $_.Name -eq 'v2ray.exe' -and $_.CreationDate -ge $startedAt.AddSeconds(-2) }
+}
+if (-not $fresh) { Fail 'the engine did not start from the scheduled task. Check Task Scheduler > SecureGateway Office Exit > History.' }
+Say "Engine running (process $(@($fresh)[0].ProcessId))"
 
 if (-not $env:KEEP_SLEEP) {
     Say 'Disabling sleep on mains power (the office server stops while this computer sleeps; set KEEP_SLEEP=1 to skip)'
