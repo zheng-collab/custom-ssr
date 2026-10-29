@@ -64,16 +64,34 @@ jobs:
         if: env.SIGN_PFX_BASE64 != ''
         shell: pwsh
         run: |
+          # Pasted secrets often carry stray spaces/newlines; base64 and our passwords never contain them.
+          $b64 = ($env:SIGN_PFX_BASE64 -replace '\s', '')
+          $pw = "$env:SIGN_PFX_PASSWORD".Trim()
+          if ($pw) { Write-Output "::add-mask::$pw" }
           $pfx = Join-Path $env:RUNNER_TEMP 'sign.pfx'
-          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SIGN_PFX_BASE64))
-          $cert = New-Object Security.Cryptography.X509Certificates.X509Certificate2($pfx, $env:SIGN_PFX_PASSWORD)
-          # The certificate is self-signed: trust it on this runner so "signtool verify /pa" passes.
-          foreach ($name in 'Root', 'TrustedPublisher') {
-            $store = New-Object Security.Cryptography.X509Certificates.X509Store($name, 'LocalMachine')
-            $store.Open('ReadWrite'); $store.Add($cert); $store.Close()
+          try { $bytes = [Convert]::FromBase64String($b64) }
+          catch { Write-Output "::error title=Signing secret::SIGN_PFX_BASE64 is not valid base64 ($($b64.Length) characters). Re-run scripts/export-signing-secrets.ps1."; exit 1 }
+          [IO.File]::WriteAllBytes($pfx, $bytes)
+          Write-Output "::notice title=Signing secret::key file $($bytes.Length) bytes, password $($pw.Length) characters"
+          try {
+            $cert = New-Object Security.Cryptography.X509Certificates.X509Certificate2($pfx, $pw,
+              [Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable)
+          } catch {
+            Write-Output "::error title=Signing secret::could not open the key with SIGN_PFX_PASSWORD: $($_.Exception.InnerException.Message) $($_.Exception.Message)"
+            exit 1
           }
+          if (-not $cert.HasPrivateKey) { Write-Output "::error title=Signing secret::SIGN_PFX_BASE64 holds a certificate without its private key."; exit 1 }
+          # The certificate is self-signed: trust it on this runner so "signtool verify /pa" passes.
+          try {
+            foreach ($name in 'Root', 'TrustedPublisher') {
+              $store = New-Object Security.Cryptography.X509Certificates.X509Store($name, 'LocalMachine')
+              $store.Open('ReadWrite'); $store.Add($cert); $store.Close()
+            }
+          } catch { Write-Output "::error title=Signing setup::could not trust the certificate on the runner: $($_.Exception.Message)"; exit 1 }
+          $env:SIGN_PFX_PASSWORD = $pw
           $cer = Join-Path $env:RUNNER_TEMP 'SecureGateway-CodeSign.cer'
           [IO.File]::WriteAllBytes($cer, $cert.Export('Cert'))
+          "SIGN_PFX_PASSWORD=$pw" >> $env:GITHUB_ENV
           "pfx=$pfx" >> $env:GITHUB_OUTPUT
           "cer=$cer" >> $env:GITHUB_OUTPUT
           Write-Host "Signing as $($cert.Subject), thumbprint $($cert.Thumbprint), valid until $($cert.NotAfter)"
