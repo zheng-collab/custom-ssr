@@ -68,18 +68,24 @@ try {
 Say "Exported the key ($([Math]::Round($base64.Length / 1024, 1)) KB as text) with a new random password"
 
 # ---- 3. hand both values to GitHub ---------------------------------------------------------
-$gh = Get-Command gh -ErrorAction SilentlyContinue
-$ghReady = $false
-if ($gh) { & gh auth status *> $null; $ghReady = ($LASTEXITCODE -eq 0) }
+# Windows PowerShell 5.1 turns a native program's stderr into a terminating error under
+# ErrorActionPreference=Stop, so call gh with Continue and judge it by its exit code only.
+function Invoke-Gh {
+    $prev = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+    try { & gh @args 2>&1 | Out-Null; return ($LASTEXITCODE -eq 0) }
+    catch { return $false }
+    finally { $ErrorActionPreference = $prev }
+}
+$ghReady = [bool](Get-Command gh -ErrorAction SilentlyContinue) -and (Invoke-Gh auth status)
 
 if ($ghReady) {
     # --body, not a pipe: PowerShell would append a newline to the piped value.
-    & gh secret set SIGN_PFX_BASE64 --repo $Repo --body $base64
-    if ($LASTEXITCODE) { throw 'gh could not set SIGN_PFX_BASE64' }
-    & gh secret set SIGN_PFX_PASSWORD --repo $Repo --body $password
-    if ($LASTEXITCODE) { throw 'gh could not set SIGN_PFX_PASSWORD' }
-    Say 'Both secrets set with the GitHub CLI.'
-} else {
+    $ghReady = (Invoke-Gh secret set SIGN_PFX_BASE64 --repo $Repo --body $base64) -and
+               (Invoke-Gh secret set SIGN_PFX_PASSWORD --repo $Repo --body $password)
+    if ($ghReady) { Say 'Both secrets set with the GitHub CLI.' }
+    else { Write-Host 'The GitHub CLI could not set the secrets; using the paste steps instead.' -ForegroundColor Yellow }
+}
+if (-not $ghReady) {
     Write-Host ''
     Write-Host 'Two short paste steps. A GitHub page opens each time; sign in to GitHub if it asks.' -ForegroundColor Green
     foreach ($s in @(@{ Name = 'SIGN_PFX_BASE64'; Value = $base64 }, @{ Name = 'SIGN_PFX_PASSWORD'; Value = $password })) {
