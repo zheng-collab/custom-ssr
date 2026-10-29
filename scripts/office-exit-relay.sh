@@ -198,18 +198,20 @@ cat <<EOF
 
   Linux (Ubuntu / Debian), in a terminal:
 
-    curl -fsSL $RAW/office-exit-node.sh | sudo RELAY=$PUBLIC_IP LINK_PORT=$LINK_PORT LINK_ID=$LINK_ID bash
+    curl -fsSL $RAW/office-exit-node.sh | sudo RELAY=$PUBLIC_IP LINK_PORT=$LINK_PORT LINK_ID=$LINK_ID CHECK_LINK='$SS_LINK' bash
 
   Windows 10/11, in PowerShell opened with "Run as administrator":
 
-    \$env:RELAY='$PUBLIC_IP'; \$env:LINK_PORT='$LINK_PORT'; \$env:LINK_ID='$LINK_ID'; irm $RAW/office-exit-node.ps1 | iex
+    \$env:RELAY='$PUBLIC_IP'; \$env:LINK_PORT='$LINK_PORT'; \$env:LINK_ID='$LINK_ID'; \$env:CHECK_LINK='$SS_LINK'; irm $RAW/office-exit-node.ps1 | iex
 
   STEP 2 — staff add this server in the app (Servers -> Import from
   Clipboard) or scan it on phones. It only works while the office box is on.
 
 $SS_LINK
 
-  Keep both the LINK_ID above and this link private.
+  Keep both the LINK_ID above and this link private. The office-computer
+  command ends by sending a real request through this server and prints
+  WORKING (with the office address) or NOT WORKING.
 EOF
 
 # ---- publish to Supabase shared_servers (same as shadowsocks-setup.sh) -----------------

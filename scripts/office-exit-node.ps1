@@ -44,6 +44,68 @@ function Stop-Exit {
         Stop-Process -Force -ErrorAction SilentlyContinue
 }
 
+# End-to-end check. A TCP connection to the relay proves nothing (the relay holds a
+# connection with a wrong key open just like a good one), so send a real request through
+# the staff server (CHECK_LINK, printed by the relay script) and see which address comes out.
+function Test-OfficeExit([string]$Exe) {
+    $url = if ($env:CHECK_URL) { $env:CHECK_URL } else { 'https://api.ipify.org' }
+    $myIp = try { (Invoke-WebRequest -UseBasicParsing -TimeoutSec 10 -Uri $url).Content.Trim() } catch { 'unknown' }
+    $link = $env:CHECK_LINK
+    if (-not $link) {
+        Write-Host '  Service is running. Not verified end to end (CHECK_LINK not given):'
+        Write-Host '  connect to the office server in the app and open https://ipinfo.io.'
+        Write-Host "  Expected address: $myIp"
+        return $true
+    }
+    $m = [regex]::Match($link, '^ss://([^@#]+)@([^:#]+):(\d+)')
+    if (-not $m.Success) { Write-Host '  CHECK_LINK is not a valid ss:// link - skipping the check.'; return $true }
+    $b64 = $m.Groups[1].Value.Replace('_', '/').Replace('-', '+')
+    while ($b64.Length % 4) { $b64 += '=' }
+    $creds = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64))
+    $method, $pw = $creds.Split(':', 2)
+    $port = Get-Random -Minimum 39000 -Maximum 39900
+    $tmp = Join-Path ([IO.Path]::GetTempPath()) "sg-check-$port.json"
+    $cfg = @{
+        log = @{ loglevel = 'none' }
+        inbounds = @(@{ listen = '127.0.0.1'; port = $port; protocol = 'http' })
+        outbounds = @(@{ protocol = 'shadowsocks'; settings = @{ servers = @(@{
+            address = $m.Groups[2].Value; port = [int]$m.Groups[3].Value; method = $method; password = $pw }) } })
+    } | ConvertTo-Json -Depth 8
+    [IO.File]::WriteAllText($tmp, $cfg, (New-Object Text.UTF8Encoding($false)))
+    $sp = @{ FilePath = $Exe; ArgumentList = @('run', '-c', "`"$tmp`""); PassThru = $true }
+    if ($env:OS -eq 'Windows_NT') { $sp.WindowStyle = 'Hidden' }
+    else { $sp.RedirectStandardOutput = "$tmp.out"; $sp.RedirectStandardError = "$tmp.err" }
+    $p = Start-Process @sp
+    $via = $null
+    try {
+        for ($i = 0; $i -lt 10 -and -not $via; $i++) {
+            Start-Sleep -Seconds 3
+            try { $via = (Invoke-WebRequest -UseBasicParsing -TimeoutSec 8 -Uri $url -Proxy "http://127.0.0.1:$port").Content.Trim() } catch { $via = $null }
+        }
+    } finally {
+        Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+        Remove-Item $tmp, "$tmp.out", "$tmp.err" -Force -ErrorAction SilentlyContinue
+    }
+    if ($via -and $via -eq $myIp) {
+        Write-Host "  WORKING. A request through the office server came out as $via (this office)." -ForegroundColor Green
+        return $true
+    } elseif ($via) {
+        Write-Host "  Requests through the office server come out as $via; this computer's own address is $myIp." -ForegroundColor Yellow
+        Write-Host '  If the office has several internet addresses that is fine; otherwise check the setup.'
+        return $true
+    }
+    Write-Host '  NOT WORKING. No request got through the office server within 30 s.' -ForegroundColor Red
+    Write-Host "  Most likely the tunnel key (LINK_ID) does not match the one on the VPS (VPS log shows 'invalid user'),"
+    Write-Host '  or the relay is not running.'
+    return $false
+}
+
+if ($env:SG_CHECK_ONLY) {
+    $exe = if ($env:SG_V2RAY_EXE) { $env:SG_V2RAY_EXE } else { Join-Path $InstallDir 'v2ray.exe' }
+    [void](Test-OfficeExit $exe)
+    return
+}
+
 if (-not $DryRun) {
     $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
         [Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -163,26 +225,16 @@ if (-not $env:KEEP_SLEEP) {
     & powercfg.exe /change hibernate-timeout-ac 0 | Out-Null
 }
 
-# ---- check the tunnel came up -----------------------------------------------------------
-Say 'Waiting for the tunnel to the relay'
-$up = $false
-for ($i = 0; $i -lt 15 -and -not $up; $i++) {
-    Start-Sleep -Seconds 1
-    $up = [bool](Get-NetTCPConnection -State Established -RemotePort ([int]$LinkPort) -ErrorAction SilentlyContinue)
-}
-$myIp = try { (Invoke-WebRequest -UseBasicParsing -TimeoutSec 10 https://api.ipify.org).Content } catch { 'unknown' }
-
+# ---- end-to-end check ------------------------------------------------------------------
+Say 'Checking end to end (up to 30 s)'
+Start-Sleep -Seconds 2
 Write-Host ''
-if ($up) {
-    Write-Host "  Tunnel to ${Relay}:$LinkPort is UP." -ForegroundColor Green
-} elseif (-not (Test-Path $exe)) {
+if (-not (Test-Path $exe)) {
     Write-Host '  v2ray.exe has disappeared - antivirus probably quarantined it.' -ForegroundColor Yellow
-    Write-Host "  Restore it in Windows Security > Protection history, allow it, then run this command again."
+    Write-Host '  Restore it in Windows Security > Protection history, allow it, then run this command again.'
 } else {
-    Write-Host "  The task is running but no tunnel to ${Relay}:$LinkPort yet." -ForegroundColor Yellow
-    Write-Host "  Check that the relay is running on the VPS and that port $LinkPort is reachable:"
-    Write-Host "    Test-NetConnection $Relay -Port $LinkPort"
+    [void](Test-OfficeExit $exe)
 }
-Write-Host "  Staff on the office server will appear as: $myIp"
-Write-Host "  It starts automatically with Windows, before anyone signs in."
-Write-Host "  Remove:  `$env:SG_UNINSTALL='1'; irm <same url> | iex"
+Write-Host '  It starts automatically with Windows, before anyone signs in.'
+Write-Host "  Check again later:  `$env:SG_CHECK_ONLY='1'; `$env:CHECK_LINK='<link>'; irm <same url> | iex"
+Write-Host "  Remove:             `$env:SG_UNINSTALL='1'; irm <same url> | iex"

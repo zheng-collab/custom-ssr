@@ -69,8 +69,10 @@ install_v2ray() {
     rm -rf "$tmp"
     log "Installed $("$BIN_DIR/v2ray" version | head -1)"
 }
-[ -n "$SG_DRY_RUN" ] || install_v2ray
+if [ -z "$SG_DRY_RUN" ] && [ -z "${SG_CHECK_ONLY:-}" ]; then install_v2ray; fi
 
+CHECK_LINK="${CHECK_LINK:-}"
+if [ -n "${SG_CHECK_ONLY:-}" ]; then :; else
 # ---- config -----------------------------------------------------------------------------
 # The bridge opens the tunnel to the relay ("link"); everything that arrives down it goes
 # out directly, except private/LAN destinations, which are dropped. IPOnDemand makes the
@@ -147,25 +149,65 @@ if [ -z "$KEEP_SLEEP" ]; then
     systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target >/dev/null 2>&1 || true
 fi
 
-# ---- check the tunnel came up -----------------------------------------------------------
-log "Waiting for the tunnel to the relay"
-ok=""
-for _ in $(seq 1 15); do
-    systemctl is-active --quiet sg-exit || break
-    if command -v ss >/dev/null && ss -tn state established 2>/dev/null | grep -q ":$LINK_PORT\b"; then ok=1; break; fi
-    sleep 1
-done
-systemctl is-active --quiet sg-exit || { journalctl -u sg-exit -n 20 --no-pager; die "sg-exit failed to start"; }
+fi  # end of install (skipped by SG_CHECK_ONLY)
 
-MYIP=$(curl -fsS -4 --max-time 10 https://api.ipify.org 2>/dev/null || echo "unknown")
+# ---- end-to-end check ------------------------------------------------------------------
+# A TCP connection to the relay proves nothing: the relay holds a connection with a wrong
+# key open just like a good one. So send a real request through the staff server (the
+# CHECK_LINK printed by the relay script) and see which address comes out.
+check_exit() {
+    local link="${CHECK_LINK:-}"
+    MYIP=$(curl -fsS -4 --noproxy '*' --max-time 10 "${CHECK_URL:-https://api.ipify.org}" 2>/dev/null || echo "unknown")
+    if [ -z "$link" ]; then
+        echo "  Service is running. Not verified end to end (CHECK_LINK not given):"
+        echo "  connect to the office server in the app and open https://ipinfo.io."
+        echo "  Expected address: $MYIP"
+        return 0
+    fi
+    local body=${link#ss://}; body=${body%%#*}
+    local userinfo=${body%@*} hostport=${body##*@}
+    local host=${hostport%:*} port=${hostport##*:}
+    userinfo=$(printf '%s' "$userinfo" | tr '_-' '/+'); while [ $(( ${#userinfo} % 4 )) -ne 0 ]; do userinfo="$userinfo="; done
+    local creds; creds=$(printf '%s' "$userinfo" | base64 -d 2>/dev/null) || creds=""
+    local method=${creds%%:*} pw=${creds#*:}
+    [ -n "$method" ] && [ -n "$pw" ] || { echo "  CHECK_LINK is not a valid ss:// link — skipping the check."; return 0; }
+
+    local tmp lport; tmp=$(mktemp -d); lport=$(( 39000 + RANDOM % 900 ))
+    cat > "$tmp/check.json" <<JSON
+{ "log": { "loglevel": "none" },
+  "inbounds": [ { "listen": "127.0.0.1", "port": $lport, "protocol": "http" } ],
+  "outbounds": [ { "protocol": "shadowsocks",
+                   "settings": { "servers": [ { "address": "$host", "port": $port, "method": "$method", "password": "$pw" } ] } } ] }
+JSON
+    "$BIN_DIR/v2ray" run -c "$tmp/check.json" >/dev/null 2>&1 & local cpid=$!
+    local via="" i
+    for i in $(seq 1 10); do
+        sleep 3
+        via=$(curl -fsS -4 --noproxy '' --max-time 8 -x "http://127.0.0.1:$lport" "${CHECK_URL:-https://api.ipify.org}" 2>/dev/null) && [ -n "$via" ] && break
+        via=""
+    done
+    kill "$cpid" 2>/dev/null; rm -rf "$tmp"
+
+    if [ -n "$via" ] && [ "$via" = "$MYIP" ]; then
+        printf '  \033[1;32mWORKING.\033[0m A request through the office server came out as %s (this office).\n' "$via"
+    elif [ -n "$via" ]; then
+        echo "  Requests through the office server come out as $via; this computer's own address is $MYIP."
+        echo "  If the office has several internet addresses that is fine; otherwise check the setup."
+    else
+        printf '  \033[1;31mNOT WORKING.\033[0m No request got through the office server within 30 s.\n'
+        echo "  Most likely the tunnel key (LINK_ID) does not match the one on the VPS"
+        echo "  (VPS log shows 'invalid user'), or the relay is not running."
+        return 1
+    fi
+}
+
+if [ -n "${SG_CHECK_ONLY:-}" ]; then check_exit; exit $?; fi
+
+log "Checking end to end (up to 30 s)"
+sleep 2
+systemctl is-active --quiet sg-exit || { journalctl -u sg-exit -n 20 --no-pager; die "sg-exit failed to start"; }
 echo
-if [ -n "$ok" ]; then
-    echo "  Tunnel to $RELAY:$LINK_PORT is UP."
-else
-    echo "  The service is running but no tunnel to $RELAY:$LINK_PORT yet."
-    echo "  Check that the relay is running on the VPS and that port $LINK_PORT is reachable."
-fi
+check_exit || true
 cat <<EOF
-  Staff on the office server will appear as: $MYIP
   Service log: journalctl -u sg-exit -f      Stop: sudo systemctl disable --now sg-exit
 EOF
