@@ -1,4 +1,5 @@
 using System;
+using SecureGateway.Localization;
 using System.Threading.Tasks;
 using System.Windows;
 using SecureGateway.Models;
@@ -29,13 +30,13 @@ namespace SecureGateway.UI.ViewModels
                 MessageKind.Error => MessageBoxImage.Error,
                 _ => MessageBoxImage.Information
             };
-            MessageBox.Show(message, title, MessageBoxButton.OK, icon);
+            MessageBox.Show(Loc.T(message), Loc.T(title), MessageBoxButton.OK, icon);
             return Task.CompletedTask;
         }
 
         protected override Task<bool> ConfirmAsync(string title, string message)
         {
-            var result = MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Question);
+            var result = MessageBox.Show(Loc.T(message), Loc.T(title), MessageBoxButton.YesNo, MessageBoxImage.Question);
             return Task.FromResult(result == MessageBoxResult.Yes);
         }
 

@@ -1,4 +1,5 @@
 using System;
+using SecureGateway.Localization;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using SecureGateway.Models;
@@ -39,22 +40,22 @@ namespace SecureGateway.Mac.Views
 
             if (string.IsNullOrWhiteSpace(_server.Address))
             {
-                await MessageWindow.ShowAsync(this, "Validation", "Server address is required.", MessageWindow.Kind.Warning);
+                await MessageWindow.ShowAsync(this, Loc.T("Validation"), Loc.T("Server address is required."), MessageWindow.Kind.Warning);
                 return;
             }
             if (_server.Port <= 0 || _server.Port > 65535)
             {
-                await MessageWindow.ShowAsync(this, "Validation", "Port must be between 1 and 65535.", MessageWindow.Kind.Warning);
+                await MessageWindow.ShowAsync(this, Loc.T("Validation"), Loc.T("Port must be between 1 and 65535."), MessageWindow.Kind.Warning);
                 return;
             }
             if (_server.Protocol == ProxyProtocol.V2Ray && string.IsNullOrWhiteSpace(_server.V2RayUserId))
             {
-                await MessageWindow.ShowAsync(this, "Validation", "V2Ray User ID is required.", MessageWindow.Kind.Warning);
+                await MessageWindow.ShowAsync(this, Loc.T("Validation"), Loc.T("V2Ray User ID is required."), MessageWindow.Kind.Warning);
                 return;
             }
             if (_server.Protocol == ProxyProtocol.Shadowsocks && string.IsNullOrWhiteSpace(_server.SsPassword))
             {
-                await MessageWindow.ShowAsync(this, "Validation", "Shadowsocks password is required.", MessageWindow.Kind.Warning);
+                await MessageWindow.ShowAsync(this, Loc.T("Validation"), Loc.T("Shadowsocks password is required."), MessageWindow.Kind.Warning);
                 return;
             }
 

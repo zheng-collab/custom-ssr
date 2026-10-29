@@ -1,4 +1,5 @@
 using System.IO;
+using SecureGateway.Localization;
 using System.Windows;
 using System.Windows.Media.Imaging;
 using SecureGateway.Models;
@@ -33,11 +34,11 @@ namespace SecureGateway.UI.Views
             try
             {
                 Clipboard.SetText(_link);
-                BtnCopy.Content = "Copied";
+                BtnCopy.Content = Loc.T("Copied");
             }
             catch
             {
-                BtnCopy.Content = "Copy failed";
+                BtnCopy.Content = Loc.T("Copy failed");
             }
         }
 

@@ -1,4 +1,5 @@
 using System;
+using SecureGateway.Localization;
 using System.IO;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -103,7 +104,7 @@ namespace SecureGateway.UI.ViewModels
 
         public bool IsMainMode => !IsResetMode;
         public bool IsSignInMode => !IsSignUpMode && !IsResetMode;
-        public string SubmitText => IsSignUpMode ? "Create Account" : "Sign In";
+        public string SubmitText => Loc.T(IsSignUpMode ? "Create Account" : "Sign In");
 
         public bool IsBusy
         {
@@ -111,11 +112,12 @@ namespace SecureGateway.UI.ViewModels
             private set { if (SetProperty(ref _isBusy, value)) OnPropertyChanged(nameof(CanInteract)); }
         }
 
-        public string BusyText { get => _busyText; private set => SetProperty(ref _busyText, value); }
+        // The message properties below receive English text from here and from AuthService; shown translated.
+        public string BusyText { get => _busyText; private set => SetProperty(ref _busyText, Loc.T(value)); }
         public bool CanInteract => !IsBusy && !IsLockedOut;
-        public string StatusMessage { get => _statusMessage; private set => SetProperty(ref _statusMessage, value); }
+        public string StatusMessage { get => _statusMessage; private set => SetProperty(ref _statusMessage, Loc.T(value)); }
         public bool StatusIsError { get => _statusIsError; private set => SetProperty(ref _statusIsError, value); }
-        public string LockoutText { get => _lockoutText; private set => SetProperty(ref _lockoutText, value); }
+        public string LockoutText { get => _lockoutText; private set => SetProperty(ref _lockoutText, Loc.T(value)); }
         public bool HasLockoutText => !string.IsNullOrEmpty(LockoutText);
 
         /// <summary>True after the login server proved unreachable; shows the "connect first" option.</summary>
@@ -127,7 +129,7 @@ namespace SecureGateway.UI.ViewModels
 
         /// <summary>ss:// or vmess:// link pasted by the user (optional; saved servers are tried otherwise).</summary>
         public string BootstrapLink { get => _bootstrapLink; set => SetProperty(ref _bootstrapLink, value); }
-        public string BootstrapStatus { get => _bootstrapStatus; private set => SetProperty(ref _bootstrapStatus, value); }
+        public string BootstrapStatus { get => _bootstrapStatus; private set => SetProperty(ref _bootstrapStatus, Loc.T(value)); }
         public bool IsBootstrapped => Bootstrap?.IsRunning == true;
 
         /// <summary>Toggles the "connect first" section manually (link on the login screen).</summary>

@@ -1,7 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:SecureGateway.Mac"
         x:Class="SecureGateway.Mac.Views.LoginWindow"
-        Title="SecureGateway - Sign In" Width="400" MinHeight="560"
+        Title="{loc:T 'SecureGateway - Sign In'}" Width="400" MinHeight="560"
         SizeToContent="Height"
         CanResize="False" WindowStartupLocation="CenterScreen">
 
@@ -12,44 +13,44 @@
         <Image Source="avares://SecureGateway/Assets/icon_256.png" Width="40" Height="40"/>
       </Border>
       <TextBlock Text="SecureGateway" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
-      <TextBlock Text="Enterprise VPN Client" Classes="label" FontSize="13" HorizontalAlignment="Center" Margin="0,4,0,16"/>
+      <TextBlock Text="{loc:T 'Enterprise VPN Client'}" Classes="label" FontSize="13" HorizontalAlignment="Center" Margin="0,4,0,16"/>
 
       <Border Classes="card" Padding="22">
         <StackPanel>
           <!-- Tabs -->
           <Grid ColumnDefinitions="*,*" Margin="0,0,0,16" IsVisible="{Binding IsMainMode}">
-            <Button Name="BtnSignInTab" Grid.Column="0" Content="Sign In" HorizontalAlignment="Stretch"
+            <Button Name="BtnSignInTab" Grid.Column="0" Content="{loc:T 'Sign In'}" HorizontalAlignment="Stretch"
                     CornerRadius="6,0,0,6" Click="OnSignInTab"/>
-            <Button Name="BtnSignUpTab" Grid.Column="1" Content="Sign Up" HorizontalAlignment="Stretch"
+            <Button Name="BtnSignUpTab" Grid.Column="1" Content="{loc:T 'Sign Up'}" HorizontalAlignment="Stretch"
                     CornerRadius="0,6,6,0" Click="OnSignUpTab"/>
           </Grid>
 
-          <TextBlock Text="Email" Classes="field" Margin="0,0,0,4"/>
+          <TextBlock Text="{loc:T 'Email'}" Classes="field" Margin="0,0,0,4"/>
           <TextBox Name="TxtEmail" Text="{Binding Email}" IsEnabled="{Binding CanInteract}"
                    Watermark="you@company.com" KeyDown="OnEnter"/>
 
           <!-- Sign in / sign up -->
           <StackPanel IsVisible="{Binding IsMainMode}">
-            <TextBlock Text="Password" Classes="field"/>
+            <TextBlock Text="{loc:T 'Password'}" Classes="field"/>
             <Grid ColumnDefinitions="*,Auto">
               <TextBox Name="TxtPassword" Text="{Binding Password}" PasswordChar="●"
                        IsEnabled="{Binding CanInteract}" KeyDown="OnEnter"/>
               <Button Grid.Column="1" Classes="link" Content="👁" Margin="6,0,0,0" Click="OnTogglePassword"
-                      ToolTip.Tip="Show / hide password"/>
+                      ToolTip.Tip="{loc:T 'Show / hide password'}"/>
             </Grid>
 
-            <Button Classes="link" Content="Forgot password?" HorizontalAlignment="Right" Margin="0,6,0,0"
+            <Button Classes="link" Content="{loc:T 'Forgot password?'}" HorizontalAlignment="Right" Margin="0,6,0,0"
                     IsVisible="{Binding IsSignInMode}" Click="OnForgotPassword"/>
 
             <StackPanel IsVisible="{Binding IsSignUpMode}">
-              <TextBlock Text="Confirm Password" Classes="field"/>
+              <TextBlock Text="{loc:T 'Confirm Password'}" Classes="field"/>
               <TextBox Text="{Binding ConfirmPassword}" PasswordChar="●" IsEnabled="{Binding CanInteract}" KeyDown="OnEnter"/>
             </StackPanel>
 
             <TextBlock Text="{Binding LockoutText}" IsVisible="{Binding HasLockoutText}" Foreground="{StaticResource Peach}"
                        FontSize="12" HorizontalAlignment="Center" Margin="0,10,0,0" TextWrapping="Wrap"/>
 
-            <CheckBox Content="Remember me" IsChecked="{Binding RememberMe}" Margin="0,12,0,0" FontSize="12"/>
+            <CheckBox Content="{loc:T 'Remember me'}" IsChecked="{Binding RememberMe}" Margin="0,12,0,0" FontSize="12"/>
 
             <Button Name="BtnSubmit" Classes="primary" Content="{Binding SubmitText}" Height="42" FontSize="15"
                     HorizontalAlignment="Stretch" Margin="0,14,0,0" IsEnabled="{Binding CanInteract}" Click="OnSubmit"/>
@@ -57,36 +58,36 @@
 
           <!-- Password reset -->
           <StackPanel IsVisible="{Binding IsResetMode}">
-            <TextBlock Text="We'll e-mail a reset code to the address above." Classes="label" TextWrapping="Wrap" Margin="0,10,0,0"/>
-            <Button Content="Send reset code" HorizontalAlignment="Stretch" Margin="0,10,0,0"
+            <TextBlock Text="{loc:T 'We’ll e-mail a reset code to the address above.'}" Classes="label" TextWrapping="Wrap" Margin="0,10,0,0"/>
+            <Button Content="{loc:T 'Send reset code'}" HorizontalAlignment="Stretch" Margin="0,10,0,0"
                     IsEnabled="{Binding CanInteract}" Click="OnSendReset"/>
 
-            <TextBlock Text="Reset code, or paste the link from the e-mail" Classes="field" Margin="0,14,0,4"/>
+            <TextBlock Text="{loc:T 'Reset code, or paste the link from the e-mail'}" Classes="field" Margin="0,14,0,4"/>
             <TextBox Text="{Binding ResetCode}" IsEnabled="{Binding CanInteract}" KeyDown="OnResetEnter"/>
 
-            <TextBlock Text="New password" Classes="field"/>
+            <TextBlock Text="{loc:T 'New password'}" Classes="field"/>
             <TextBox Text="{Binding NewPassword}" PasswordChar="●" IsEnabled="{Binding CanInteract}" KeyDown="OnResetEnter"/>
 
-            <Button Classes="primary" Content="Set new password" Height="42" FontSize="15" HorizontalAlignment="Stretch"
+            <Button Classes="primary" Content="{loc:T 'Set new password'}" Height="42" FontSize="15" HorizontalAlignment="Stretch"
                     Margin="0,14,0,0" IsEnabled="{Binding CanInteract}" Click="OnApplyReset"/>
-            <Button Classes="link" Content="Back to sign in" HorizontalAlignment="Center" Margin="0,12,0,0" Click="OnBackToSignIn"/>
+            <Button Classes="link" Content="{loc:T 'Back to sign in'}" HorizontalAlignment="Center" Margin="0,12,0,0" Click="OnBackToSignIn"/>
           </StackPanel>
 
           <TextBlock Name="TxtStatus" Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="12" Margin="0,10,0,0"/>
           <TextBlock Text="{Binding BusyText}" IsVisible="{Binding IsBusy}" Classes="label" HorizontalAlignment="Center" Margin="0,8,0,0"/>
 
           <!-- "Connect first" for networks that block the login server -->
-          <Button Classes="link" Content="Can't reach the login server?" HorizontalAlignment="Center"
+          <Button Classes="link" Content="{loc:T 'Can’t reach the login server?'}" HorizontalAlignment="Center"
                   Margin="0,10,0,0" FontSize="11" Foreground="{StaticResource Overlay}" Click="OnNetworkHelp"/>
           <Border Background="{StaticResource Base}" CornerRadius="6" Padding="10" Margin="0,8,0,0"
                   IsVisible="{Binding IsNetworkBlocked}">
             <StackPanel>
               <TextBlock Classes="label" FontSize="11" TextWrapping="Wrap"
-                         Text="On restricted networks the login server is blocked. Connect through your VPN server first; the sign-in then goes through the tunnel."/>
+                         Text="{loc:T 'On restricted networks the login server is blocked. Connect through your VPN server first; the sign-in then goes through the tunnel.'}"/>
               <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,8,0,4"
-                         Text="Server link from your administrator (ss:// or vmess://). Leave empty to use a server saved on this Mac."/>
+                         Text="{loc:T 'Server link from your administrator (ss:// or vmess://). Leave empty to use a server saved on this Mac.'}"/>
               <TextBox Text="{Binding BootstrapLink}" FontSize="12" IsEnabled="{Binding CanInteract}"/>
-              <Button Content="Connect through server, then sign in" HorizontalAlignment="Stretch" FontSize="12"
+              <Button Content="{loc:T 'Connect through server, then sign in'}" HorizontalAlignment="Stretch" FontSize="12"
                       Margin="0,8,0,0" IsEnabled="{Binding CanInteract}" Click="OnBootstrap"/>
               <TextBlock Text="{Binding BootstrapStatus}" Foreground="{StaticResource Green}" FontSize="11"
                          TextWrapping="Wrap" Margin="0,6,0,0"/>

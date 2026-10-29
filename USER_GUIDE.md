@@ -323,6 +323,7 @@ The bypass list applies in Global and Rule-Based modes. If a Chinese site is the
 | Setting | Description |
 |---------|-------------|
 | **Start with Windows** | Automatically launch SecureGateway when Windows starts |
+| **Language / 语言** | Automatic (follows the system language), English, or 简体中文. Takes effect the next time SecureGateway starts. The Log tab stays in English for support. |
 | **Auto-connect on startup** | Automatically connect to the last used server on launch |
 | **Minimize to system tray on close** | Closing the window minimizes to tray instead of exiting |
 

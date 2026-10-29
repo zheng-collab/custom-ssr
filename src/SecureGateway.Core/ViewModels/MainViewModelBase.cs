@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using SecureGateway.Core.Config;
 using SecureGateway.Core.Engines;
+using SecureGateway.Localization;
 using SecureGateway.Core.Logging;
 using SecureGateway.Models;
 using SecureGateway.Platform;
@@ -104,17 +105,17 @@ namespace SecureGateway.UI.ViewModels
         }
 
         // Display text shared by both apps, so Windows and macOS say the same thing.
-        public string StatusHeadline => IsConnecting ? "Connecting…" : IsConnected ? "Connected" : "Not connected";
-        public string ConnectButtonText => IsConnecting ? "Connecting…" : IsConnected ? "Disconnect" : "Connect";
+        public string StatusHeadline => Loc.T(IsConnecting ? "Connecting…" : IsConnected ? "Connected" : "Not connected");
+        public string ConnectButtonText => Loc.T(IsConnecting ? "Connecting…" : IsConnected ? "Disconnect" : "Connect");
         public bool IsIdle => !IsConnected && !IsConnecting;
         public bool HasServers => Servers.Count > 0;
 
-        public string ModeDescription => ProxyMode switch
+        public string ModeDescription => Loc.T(ProxyMode switch
         {
             ProxyMode.Global => "Everything goes through the VPN, except your bypass list.",
             ProxyMode.Rule => "Mainland-China sites and your bypass list connect directly. Everything else goes through the VPN.",
             _ => "The VPN stays connected, but apps only use it if you set them to.",
-        };
+        });
 
         private void OnConnectionStateChanged()
         {
@@ -126,15 +127,18 @@ namespace SecureGateway.UI.ViewModels
         public string StatusText
         {
             get => _statusText;
-            set { if (SetProperty(ref _statusText, value)) OnPropertyChanged(nameof(StatusDetail)); }
+            // Messages arrive in English from the engine and services; shown translated.
+            set { if (SetProperty(ref _statusText, Loc.T(value))) OnPropertyChanged(nameof(StatusDetail)); }
         }
 
         /// <summary>StatusText under the headline, minus the bare words that only repeat it.</summary>
-        public string StatusDetail => _statusText is null or "Disconnected" or "Connected" or "Connecting..." ? "" : _statusText;
+        public string StatusDetail =>
+            string.IsNullOrEmpty(_statusText) || new[] { "Disconnected", "Connected", "Connecting..." }.Any(w => Loc.T(w) == _statusText)
+                ? "" : _statusText;
         public string ConnectionInfo { get => _connectionInfo; set => SetProperty(ref _connectionInfo, value); }
         public string UploadSpeed { get => _uploadSpeed; set => SetProperty(ref _uploadSpeed, value); }
         public string DownloadSpeed { get => _downloadSpeed; set => SetProperty(ref _downloadSpeed, value); }
-        public string Latency { get => _latency; set => SetProperty(ref _latency, value); }
+        public string Latency { get => _latency; set => SetProperty(ref _latency, Loc.T(value)); }
         public string ConnectionDuration { get => _connectionDuration; set => SetProperty(ref _connectionDuration, value); }
         public string UserEmail { get => _userEmail; set => SetProperty(ref _userEmail, value); }
         public bool IsSyncing { get => _isSyncing; set => SetProperty(ref _isSyncing, value); }
@@ -231,6 +235,22 @@ namespace SecureGateway.UI.ViewModels
                 }
             }
         }
+
+        /// <summary>Interface language; applied at the next start (Loc.Init runs before any window).</summary>
+        public UiLanguage Language
+        {
+            get => ConfigManager.Config.Language;
+            set
+            {
+                if (ConfigManager.Config.Language == value) return;
+                ConfigManager.Config.Language = value;
+                ConfigManager.Save();
+                OnPropertyChanged();
+                LanguageRestartNeeded = true;
+                OnPropertyChanged(nameof(LanguageRestartNeeded));
+            }
+        }
+        public bool LanguageRestartNeeded { get; private set; }
 
         public bool MinimizeToTray
         {

@@ -1,4 +1,5 @@
 using System.IO;
+using SecureGateway.Localization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
@@ -13,7 +14,7 @@ namespace SecureGateway.Mac.Views
     {
         public ShareLinkWindow(ServerProfile server, string link, byte[] qrPng)
         {
-            Title = "Share Link / QR Code";
+            Title = Loc.T("Share Link / QR Code");
             Width = 460;
             SizeToContent = SizeToContent.Height;
             CanResize = false;
@@ -24,8 +25,8 @@ namespace SecureGateway.Mac.Views
             root.Children.Add(new TextBlock { Text = server.Name, FontSize = 16, FontWeight = FontWeight.Bold });
             root.Children.Add(new TextBlock
             {
-                Text = "Scan with your phone's VPN app (Android: v2rayNG or Shadowsocks; iPhone: Shadowrocket) or copy the link. " +
-                       "Anyone with this link can use the server — share it only with staff.",
+                Text = Loc.T("Scan with your phone’s VPN app (Android: v2rayNG or Shadowsocks; iPhone: Shadowrocket) or copy the link. " +
+                             "Anyone with this link can use the server — share it only with staff."),
                 TextWrapping = TextWrapping.Wrap, FontSize = 12,
                 Foreground = new SolidColorBrush(Color.Parse("#A6ADC8")),
                 Margin = new Thickness(0, 4, 0, 14)
@@ -48,17 +49,17 @@ namespace SecureGateway.Mac.Views
             };
             root.Children.Add(linkBox);
 
-            var copy = new Button { Content = "Copy link", MinWidth = 110 };
+            var copy = new Button { Content = Loc.T("Copy link"), MinWidth = 110 };
             copy.Classes.Add("primary");
             copy.Click += async (_, _) =>
             {
                 try
                 {
-                    if (Clipboard != null) { await Clipboard.SetTextAsync(link); copy.Content = "Copied"; }
+                    if (Clipboard != null) { await Clipboard.SetTextAsync(link); copy.Content = Loc.T("Copied"); }
                 }
-                catch { copy.Content = "Copy failed"; }
+                catch { copy.Content = Loc.T("Copy failed"); }
             };
-            var close = new Button { Content = "Close", MinWidth = 90 };
+            var close = new Button { Content = Loc.T("Close"), MinWidth = 90 };
             close.Click += (_, _) => Close();
 
             root.Children.Add(new StackPanel

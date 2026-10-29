@@ -1,4 +1,5 @@
 using System.Windows;
+using SecureGateway.Localization;
 using SecureGateway.Models;
 
 namespace SecureGateway.UI.Views
@@ -40,25 +41,25 @@ namespace SecureGateway.UI.Views
         {
             if (string.IsNullOrWhiteSpace(_server.Address))
             {
-                MessageBox.Show("Server address is required.", "Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(Loc.T("Server address is required."), Loc.T("Validation"), MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             if (_server.Port <= 0 || _server.Port > 65535)
             {
-                MessageBox.Show("Port must be between 1 and 65535.", "Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(Loc.T("Port must be between 1 and 65535."), Loc.T("Validation"), MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             if (_server.Protocol == ProxyProtocol.V2Ray && string.IsNullOrWhiteSpace(_server.V2RayUserId))
             {
-                MessageBox.Show("V2Ray User ID is required.", "Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(Loc.T("V2Ray User ID is required."), Loc.T("Validation"), MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             if (_server.Protocol == ProxyProtocol.Shadowsocks && string.IsNullOrWhiteSpace(_server.SsPassword))
             {
-                MessageBox.Show("Shadowsocks password is required.", "Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(Loc.T("Shadowsocks password is required."), Loc.T("Validation"), MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 

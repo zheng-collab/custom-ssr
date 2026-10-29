@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using SecureGateway.Localization;
 using SecureGateway.Services;
 using SecureGateway.UI.Views;
 
@@ -28,12 +29,22 @@ namespace SecureGateway
         {
             RegisterGlobalExceptionHandlers();
 
+            // Before any window exists: every {loc:T} in XAML is resolved when a window loads.
+            Loc.Init(new SecureGateway.Core.Config.ConfigManager().Config.Language);
+            if (Loc.IsChinese)
+            {
+                // Tells WPF the text is Simplified Chinese, so it picks Microsoft YaHei UI glyphs
+                // (not Japanese variants) for every control.
+                FrameworkElement.LanguageProperty.OverrideMetadata(typeof(FrameworkElement),
+                    new FrameworkPropertyMetadata(System.Windows.Markup.XmlLanguage.GetLanguage("zh-CN")));
+            }
+
             // "Local\" scopes the mutex to the current Windows logon session, so different
             // Windows user accounts on the same PC can each run their own instance.
             _mutex = new Mutex(true, @"Local\SecureGateway_SingleInstance_Mutex", out bool createdNew);
             if (!createdNew)
             {
-                MessageBox.Show("SecureGateway is already running.", "SecureGateway",
+                MessageBox.Show(Loc.T("SecureGateway is already running."), "SecureGateway",
                     MessageBoxButton.OK, MessageBoxImage.Information);
                 Shutdown();
                 return;
@@ -50,7 +61,7 @@ namespace SecureGateway
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Failed to initialize authentication:\n{ex.Message}",
+                MessageBox.Show(Loc.T($"Failed to initialize authentication:\n{ex.Message}"),
                     "SecureGateway", MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown();
                 return;
@@ -106,7 +117,7 @@ namespace SecureGateway
             DispatcherUnhandledException += (s, args) =>
             {
                 WriteCrashLog(args.Exception);
-                MessageBox.Show($"An unexpected error occurred:\n{args.Exception.Message}",
+                MessageBox.Show(Loc.T($"An unexpected error occurred:\n{args.Exception.Message}"),
                     "SecureGateway", MessageBoxButton.OK, MessageBoxImage.Error);
                 args.Handled = true;
             };
@@ -162,20 +173,20 @@ namespace SecureGateway
 
             var menu = new System.Windows.Forms.ContextMenuStrip();
 
-            var showItem = new System.Windows.Forms.ToolStripMenuItem("Show SecureGateway");
+            var showItem = new System.Windows.Forms.ToolStripMenuItem(Loc.T("Show SecureGateway"));
             showItem.Click += (s, e) => _mainWindow?.ShowFromTray();
             showItem.Font = new Font(showItem.Font, System.Drawing.FontStyle.Bold);
             menu.Items.Add(showItem);
 
             menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
 
-            var connectItem = new System.Windows.Forms.ToolStripMenuItem("Connect");
+            var connectItem = new System.Windows.Forms.ToolStripMenuItem(Loc.T("Connect"));
             connectItem.Click += (s, e) => _mainWindow?.ViewModel.ToggleConnectionCommand.Execute(null);
             menu.Items.Add(connectItem);
 
             menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
 
-            var exitItem = new System.Windows.Forms.ToolStripMenuItem("Exit");
+            var exitItem = new System.Windows.Forms.ToolStripMenuItem(Loc.T("Exit"));
             exitItem.Click += (s, e) =>
             {
                 _trayIcon.Visible = false;
@@ -185,7 +196,7 @@ namespace SecureGateway
             menu.Items.Add(exitItem);
 
             menu.Opening += (s, e) =>
-                connectItem.Text = _mainWindow?.ViewModel.IsConnected == true ? "Disconnect" : "Connect";
+                connectItem.Text = Loc.T(_mainWindow?.ViewModel.IsConnected == true ? "Disconnect" : "Connect");
 
             _trayIcon.ContextMenuStrip = menu;
             _trayIcon.DoubleClick += (s, e) => _mainWindow?.ShowFromTray();

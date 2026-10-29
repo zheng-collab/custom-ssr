@@ -1,4 +1,5 @@
 using System;
+using SecureGateway.Localization;
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
@@ -56,7 +57,7 @@ namespace SecureGateway.UI.Views
             BtnSignInTab.Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFrom("#1E1E2E")!;
             BtnSignUpTab.Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFrom("#45475A")!;
             BtnSignUpTab.Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFrom("#A6ADC8")!;
-            BtnSubmit.Content = "Sign In";
+            BtnSubmit.Content = Loc.T("Sign In");
             LblConfirmPassword.Visibility = Visibility.Collapsed;
             GridConfirmPassword.Visibility = Visibility.Collapsed;
             LnkForgotPassword.Visibility = Visibility.Visible;
@@ -72,7 +73,7 @@ namespace SecureGateway.UI.Views
             BtnSignUpTab.Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFrom("#1E1E2E")!;
             BtnSignInTab.Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFrom("#45475A")!;
             BtnSignInTab.Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFrom("#A6ADC8")!;
-            BtnSubmit.Content = "Create Account";
+            BtnSubmit.Content = Loc.T("Create Account");
             LblConfirmPassword.Visibility = Visibility.Visible;
             GridConfirmPassword.Visibility = Visibility.Visible;
             LnkForgotPassword.Visibility = Visibility.Collapsed;
@@ -114,7 +115,7 @@ namespace SecureGateway.UI.Views
             TxtBootstrapStatus.Text = "";
             var (connector, error) = await BootstrapConnector.TryConnectAsync(
                 TxtServerLink.Text, _authService,
-                msg => Dispatcher.Invoke(() => TxtBootstrapStatus.Text = msg));
+                msg => Dispatcher.Invoke(() => TxtBootstrapStatus.Text = Loc.T(msg)));
             SetLoading(false);
 
             if (connector == null)
@@ -125,7 +126,7 @@ namespace SecureGateway.UI.Views
             }
 
             Bootstrap = connector;
-            TxtBootstrapStatus.Text = $"Tunnel up via {connector.Original.Name}. Signing in through it...";
+            TxtBootstrapStatus.Text = Loc.T($"Tunnel up via {connector.Original.Name}. Signing in through it...");
 
             if (_authService.HasOfflineSession && await _authService.EnsureSessionAsync())
             {
@@ -475,7 +476,7 @@ namespace SecureGateway.UI.Views
                 if (_failedAttempts > 0 && !_isSignUpMode)
                 {
                     int remaining = MaxAttempts - _failedAttempts;
-                    TxtLockoutBar.Text = $"{remaining} attempt{(remaining == 1 ? "" : "s")} remaining";
+                    TxtLockoutBar.Text = Loc.T($"{remaining} attempt{(remaining == 1 ? "" : "s")} remaining");
                     TxtLockoutBar.Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFrom("#FAB387")!;
                     TxtLockoutBar.Visibility = Visibility.Visible;
                 }
@@ -566,13 +567,13 @@ namespace SecureGateway.UI.Views
         private void ShowError(string message)
         {
             TxtStatus.Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFrom("#F38BA8")!;
-            TxtStatus.Text = message;
+            TxtStatus.Text = Loc.T(message);   // messages here and from AuthService are English
         }
 
         private void ShowInfo(string message)
         {
             TxtStatus.Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFrom("#A6E3A1")!;
-            TxtStatus.Text = message;
+            TxtStatus.Text = Loc.T(message);
         }
 
         private void SetLoading(bool loading, string message = "Authenticating...")
@@ -587,7 +588,7 @@ namespace SecureGateway.UI.Views
             TxtNewPassword.IsEnabled = !loading;
             BtnBootstrap.IsEnabled = !loading;
             TxtServerLink.IsEnabled = !loading;
-            TxtLoading.Text = message;
+            TxtLoading.Text = Loc.T(message);
             TxtLoading.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
         }
 

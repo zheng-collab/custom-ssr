@@ -1,4 +1,5 @@
 using System;
+using SecureGateway.Localization;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using System.Windows;
@@ -53,8 +54,8 @@ namespace SecureGateway.UI.Views
         private async void OnLogoutClick(object sender, RoutedEventArgs e)
         {
             var result = MessageBox.Show(
-                "Sign out and return to the login screen?",
-                "Sign Out",
+                Loc.T("Sign out and return to the login screen?"),
+                Loc.T("Sign Out"),
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
 

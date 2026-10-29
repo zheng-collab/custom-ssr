@@ -1,6 +1,7 @@
 <Window x:Class="SecureGateway.UI.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:SecureGateway.UI"
         xmlns:converters="clr-namespace:SecureGateway.UI.Converters"
         Title="SecureGateway" Height="640" Width="760"
         MinHeight="520" MinWidth="560"
@@ -194,7 +195,7 @@
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="{Binding UserEmail}" Style="{StaticResource Label}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <Button Content="Sign out" Style="{StaticResource QuietButton}" Click="OnLogoutClick"/>
+                    <Button Content="{loc:T 'Sign out'}" Style="{StaticResource QuietButton}" Click="OnLogoutClick"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -202,7 +203,7 @@
         <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0" Padding="0" Margin="8,0,8,0">
 
             <!-- HOME: one status, one action, one server choice. -->
-            <TabItem Header="Home">
+            <TabItem Header="{loc:T 'Home'}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel MaxWidth="520" Margin="20,24,20,24">
 
@@ -223,9 +224,9 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Server" Style="{StaticResource Label}" VerticalAlignment="Bottom"/>
-                                    <Button Grid.Column="1" Content="Test" Style="{StaticResource ModernButton}" Padding="10,4"
-                                            Command="{Binding TestLatencyCommand}" ToolTip="Measure the latency to this server"/>
+                                    <TextBlock Text="{loc:T 'Server'}" Style="{StaticResource Label}" VerticalAlignment="Bottom"/>
+                                    <Button Grid.Column="1" Content="{loc:T 'Test'}" Style="{StaticResource ModernButton}" Padding="10,4"
+                                            Command="{Binding TestLatencyCommand}" ToolTip="{loc:T 'Measure the latency to this server'}"/>
                                 </Grid>
                                 <!-- A short list instead of a drop-down: one click per server, and it fits the dark theme. -->
                                 <ListBox ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}"
@@ -233,7 +234,7 @@
                                          Background="#181825" BorderBrush="#45475A" BorderThickness="1"
                                          ItemContainerStyle="{StaticResource RowItem}"
                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                         AutomationProperties.Name="Server"
+                                         AutomationProperties.Name="{loc:T 'Server'}"
                                          Visibility="{Binding HasServers, Converter={StaticResource BoolToVis}}">
                                     <!-- Locked while connected without IsEnabled=False, which paints the WPF ListBox white. -->
                                     <ListBox.Style>
@@ -259,7 +260,7 @@
                                 </ListBox>
                                 <TextBlock Style="{StaticResource Hint}"
                                            Visibility="{Binding HasServers, Converter={StaticResource BoolToVis}, ConverterParameter=invert}"
-                                           Text="No servers yet. Open the Servers tab and click Sync Shared to load your company's servers."/>
+                                           Text="{loc:T 'No servers yet. Open the Servers tab and click Sync Shared to load your company’s servers.'}"/>
 
                                 <Button Style="{StaticResource ConnectButton}" Margin="0,18,0,0"
                                         Content="{Binding ConnectButtonText}" Command="{Binding ToggleConnectionCommand}"
@@ -269,19 +270,19 @@
                                 <UniformGrid Columns="4" Margin="0,18,0,0"
                                              Visibility="{Binding IsConnected, Converter={StaticResource BoolToVis}}">
                                     <StackPanel>
-                                        <TextBlock Text="Latency" Style="{StaticResource Label}"/>
+                                        <TextBlock Text="{loc:T 'Latency'}" Style="{StaticResource Label}"/>
                                         <TextBlock Text="{Binding Latency}" Style="{StaticResource Stat}"/>
                                     </StackPanel>
                                     <StackPanel>
-                                        <TextBlock Text="Download" Style="{StaticResource Label}"/>
+                                        <TextBlock Text="{loc:T 'Download'}" Style="{StaticResource Label}"/>
                                         <TextBlock Text="{Binding DownloadSpeed}" Style="{StaticResource Stat}"/>
                                     </StackPanel>
                                     <StackPanel>
-                                        <TextBlock Text="Upload" Style="{StaticResource Label}"/>
+                                        <TextBlock Text="{loc:T 'Upload'}" Style="{StaticResource Label}"/>
                                         <TextBlock Text="{Binding UploadSpeed}" Style="{StaticResource Stat}"/>
                                     </StackPanel>
                                     <StackPanel>
-                                        <TextBlock Text="Time" Style="{StaticResource Label}"/>
+                                        <TextBlock Text="{loc:T 'Time'}" Style="{StaticResource Label}"/>
                                         <TextBlock Text="{Binding ConnectionDuration}" Style="{StaticResource Stat}"/>
                                     </StackPanel>
                                 </UniformGrid>
@@ -290,13 +291,13 @@
 
                         <Border Style="{StaticResource Card}">
                             <StackPanel>
-                                <TextBlock Text="Routing" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                                <TextBlock Text="{loc:T 'Routing'}" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,10"/>
                                 <WrapPanel Margin="0,0,0,10">
-                                    <RadioButton Content="Rule-Based" GroupName="ProxyMode"
+                                    <RadioButton Content="{loc:T 'Rule-Based'}" GroupName="ProxyMode"
                                                  IsChecked="{Binding ProxyMode, Converter={StaticResource EnumBool}, ConverterParameter=Rule}"/>
-                                    <RadioButton Content="Global Proxy" GroupName="ProxyMode"
+                                    <RadioButton Content="{loc:T 'Global Proxy'}" GroupName="ProxyMode"
                                                  IsChecked="{Binding ProxyMode, Converter={StaticResource EnumBool}, ConverterParameter=Global}"/>
-                                    <RadioButton Content="Direct (No Proxy)" GroupName="ProxyMode"
+                                    <RadioButton Content="{loc:T 'Direct (No Proxy)'}" GroupName="ProxyMode"
                                                  IsChecked="{Binding ProxyMode, Converter={StaticResource EnumBool}, ConverterParameter=Direct}"/>
                                 </WrapPanel>
                                 <TextBlock Text="{Binding ModeDescription}" Style="{StaticResource Hint}"/>
@@ -307,7 +308,7 @@
             </TabItem>
 
             <!-- SERVERS: list first; actions grouped by what they act on. -->
-            <TabItem Header="Servers">
+            <TabItem Header="{loc:T 'Servers'}">
                 <Grid Margin="12,16,12,12">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -321,14 +322,14 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <WrapPanel>
-                            <Button Content="Sync Shared" Style="{StaticResource AccentButton}" Margin="0,0,8,6"
-                                    Command="{Binding SyncSharedServersCommand}" ToolTip="Load the servers your company has shared"/>
-                            <Button Content="Import from Clipboard" Style="{StaticResource ModernButton}" Margin="0,0,8,6"
-                                    Command="{Binding ImportFromClipboardCommand}" ToolTip="Paste a vmess:// or ss:// link"/>
-                            <Button Content="Add Server" Style="{StaticResource ModernButton}" Margin="0,0,8,6"
+                            <Button Content="{loc:T 'Sync Shared'}" Style="{StaticResource AccentButton}" Margin="0,0,8,6"
+                                    Command="{Binding SyncSharedServersCommand}" ToolTip="{loc:T 'Load the servers your company has shared'}"/>
+                            <Button Content="{loc:T 'Import from Clipboard'}" Style="{StaticResource ModernButton}" Margin="0,0,8,6"
+                                    Command="{Binding ImportFromClipboardCommand}" ToolTip="{loc:T 'Paste a vmess:// or ss:// link'}"/>
+                            <Button Content="{loc:T 'Add Server'}" Style="{StaticResource ModernButton}" Margin="0,0,8,6"
                                     Command="{Binding AddServerCommand}"/>
                         </WrapPanel>
-                        <Button Grid.Column="1" Content="Test All" Style="{StaticResource ModernButton}" Margin="0,0,0,6"
+                        <Button Grid.Column="1" Content="{loc:T 'Test All'}" Style="{StaticResource ModernButton}" Margin="0,0,0,6"
                                 VerticalAlignment="Top" Command="{Binding TestAllLatencyCommand}"/>
                     </Grid>
 
@@ -337,7 +338,7 @@
                                  Background="#181825" BorderBrush="#313244" BorderThickness="1"
                                  ItemContainerStyle="{StaticResource RowItem}"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                 AutomationProperties.Name="Servers">
+                                 AutomationProperties.Name="{loc:T 'Servers'}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Margin="12,10">
@@ -346,7 +347,7 @@
                                             <Border Background="#45475A" CornerRadius="4" Padding="6,1" Margin="8,0,0,0"
                                                     VerticalAlignment="Center"
                                                     Visibility="{Binding IsShared, Converter={StaticResource BoolToVis}}">
-                                                <TextBlock Text="Shared" FontSize="10" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{loc:T 'Shared'}" FontSize="10" FontWeight="SemiBold"/>
                                             </Border>
                                         </StackPanel>
                                         <TextBlock Style="{StaticResource Label}" Margin="0,3,0,0">
@@ -360,60 +361,74 @@
                         </ListBox>
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="360"
                                     Visibility="{Binding HasServers, Converter={StaticResource BoolToVis}, ConverterParameter=invert}">
-                            <TextBlock Text="No servers yet" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                            <TextBlock Text="{loc:T 'No servers yet'}" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,6"/>
                             <TextBlock Style="{StaticResource Hint}" TextAlignment="Center"
-                                       Text="Click Sync Shared to load your company's servers, or copy a server link and click Import from Clipboard."/>
+                                       Text="{loc:T 'Click Sync Shared to load your company’s servers, or copy a server link and click Import from Clipboard.'}"/>
                         </StackPanel>
                     </Grid>
 
                     <WrapPanel Grid.Row="2" Margin="0,12,0,0">
-                        <TextBlock Text="Selected server:" Style="{StaticResource Label}" VerticalAlignment="Center" Margin="0,0,10,6"/>
-                        <Button Content="Edit" Style="{StaticResource ModernButton}" Margin="0,0,8,6" Command="{Binding EditServerCommand}"/>
-                        <Button Content="Duplicate" Style="{StaticResource ModernButton}" Margin="0,0,8,6" Command="{Binding DuplicateServerCommand}"/>
-                        <Button Content="Test" Style="{StaticResource ModernButton}" Margin="0,0,8,6" Command="{Binding TestLatencyCommand}"/>
-                        <Button Content="Share QR" Style="{StaticResource ModernButton}" Margin="0,0,8,6" Command="{Binding ShowShareLinkCommand}"
-                                ToolTip="Show a QR code / link for phone VPN apps"/>
-                        <Button Content="Share" Style="{StaticResource ModernButton}" Margin="0,0,8,6" Command="{Binding ShareServerCommand}"
-                                ToolTip="Admins: publish this server to every user"/>
-                        <Button Content="Unshare" Style="{StaticResource ModernButton}" Margin="0,0,8,6" Command="{Binding UnshareServerCommand}"
-                                ToolTip="Admins: stop sharing this server"/>
-                        <Button Content="Delete" Style="{StaticResource DangerButton}" Margin="0,0,0,6" Command="{Binding DeleteServerCommand}"/>
+                        <TextBlock Text="{loc:T 'Selected server:'}" Style="{StaticResource Label}" VerticalAlignment="Center" Margin="0,0,10,6"/>
+                        <Button Content="{loc:T 'Edit'}" Style="{StaticResource ModernButton}" Margin="0,0,8,6" Command="{Binding EditServerCommand}"/>
+                        <Button Content="{loc:T 'Duplicate'}" Style="{StaticResource ModernButton}" Margin="0,0,8,6" Command="{Binding DuplicateServerCommand}"/>
+                        <Button Content="{loc:T 'Test'}" Style="{StaticResource ModernButton}" Margin="0,0,8,6" Command="{Binding TestLatencyCommand}"/>
+                        <Button Content="{loc:T 'Share QR'}" Style="{StaticResource ModernButton}" Margin="0,0,8,6" Command="{Binding ShowShareLinkCommand}"
+                                ToolTip="{loc:T 'Show a QR code / link for phone VPN apps'}"/>
+                        <Button Content="{loc:T 'Share'}" Style="{StaticResource ModernButton}" Margin="0,0,8,6" Command="{Binding ShareServerCommand}"
+                                ToolTip="{loc:T 'Admins: publish this server to every user'}"/>
+                        <Button Content="{loc:T 'Unshare'}" Style="{StaticResource ModernButton}" Margin="0,0,8,6" Command="{Binding UnshareServerCommand}"
+                                ToolTip="{loc:T 'Admins: stop sharing this server'}"/>
+                        <Button Content="{loc:T 'Delete'}" Style="{StaticResource DangerButton}" Margin="0,0,0,6" Command="{Binding DeleteServerCommand}"/>
                     </WrapPanel>
                 </Grid>
             </TabItem>
 
-            <TabItem Header="Settings">
+            <TabItem Header="{loc:T 'Settings'}">
                 <ScrollViewer Margin="12,16,12,12" VerticalScrollBarVisibility="Auto">
                     <StackPanel MaxWidth="520" HorizontalAlignment="Left">
-                        <TextBlock Text="Application Settings" Style="{StaticResource Heading}" Margin="0,0,0,14"/>
-                        <CheckBox Content="Start with Windows" IsChecked="{Binding AutoStart}"/>
-                        <CheckBox Content="Auto-connect on startup" IsChecked="{Binding AutoConnect}"/>
-                        <CheckBox Content="Minimize to system tray on close" IsChecked="{Binding MinimizeToTray}"/>
+                        <TextBlock Text="{loc:T 'Application Settings'}" Style="{StaticResource Heading}" Margin="0,0,0,14"/>
+                        <CheckBox Content="{loc:T 'Start with Windows'}" IsChecked="{Binding AutoStart}"/>
+                        <CheckBox Content="{loc:T 'Auto-connect on startup'}" IsChecked="{Binding AutoConnect}"/>
+                        <CheckBox Content="{loc:T 'Minimize to system tray on close'}" IsChecked="{Binding MinimizeToTray}"/>
 
-                        <TextBlock Text="Sites that bypass the VPN" Style="{StaticResource Heading}" Margin="0,16,0,4"/>
+                        <!-- Bilingual on purpose: findable whichever language the app is in. -->
+                        <TextBlock Text="Language / 语言" Style="{StaticResource Heading}" Margin="0,16,0,8"/>
+                        <WrapPanel>
+                            <RadioButton Content="{loc:T 'Automatic (system language)'}" GroupName="UiLanguage"
+                                         IsChecked="{Binding Language, Converter={StaticResource EnumBool}, ConverterParameter=Auto}"/>
+                            <RadioButton Content="English" GroupName="UiLanguage"
+                                         IsChecked="{Binding Language, Converter={StaticResource EnumBool}, ConverterParameter=English}"/>
+                            <RadioButton Content="简体中文" GroupName="UiLanguage"
+                                         IsChecked="{Binding Language, Converter={StaticResource EnumBool}, ConverterParameter=Chinese}"/>
+                        </WrapPanel>
+                        <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0" Foreground="#F9E2AF"
+                                   Text="Restart SecureGateway to use the new language. / 重新启动 SecureGateway 后使用新语言。"
+                                   Visibility="{Binding LanguageRestartNeeded, Converter={StaticResource BoolToVis}}"/>
+
+                        <TextBlock Text="{loc:T 'Sites that bypass the VPN'}" Style="{StaticResource Heading}" Margin="0,16,0,4"/>
                         <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,8"
-                                   Text="One per line. These connect directly with your real IP, in every proxy mode. Use it for sites that reject the VPN's address (banks, streaming, company portals). A domain covers all its subdomains; IPs and CIDR ranges work too. Applied when you click elsewhere; the tunnel restarts for a second."/>
+                                   Text="{loc:T 'One per line. These connect directly with your real IP, in every proxy mode. Use it for sites that reject the VPN’s address (banks, streaming, company portals). A domain covers all its subdomains; IPs and CIDR ranges work too. Applied when you click elsewhere; the tunnel restarts for a second.'}"/>
                         <TextBox Text="{Binding DirectDomainsText, UpdateSourceTrigger=LostFocus}" AcceptsReturn="True" Height="120"
                                  VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="12"
                                  Background="#181825" Foreground="#CDD6F4" BorderBrush="#45475A" CaretBrush="#CDD6F4"
-                                 Padding="8,6" AutomationProperties.Name="Sites that bypass the VPN"/>
+                                 Padding="8,6" AutomationProperties.Name="{loc:T 'Sites that bypass the VPN'}"/>
 
-                        <TextBlock Text="About" Style="{StaticResource Heading}" Margin="0,20,0,8"/>
+                        <TextBlock Text="{loc:T 'About'}" Style="{StaticResource Heading}" Margin="0,20,0,8"/>
                         <TextBlock Style="{StaticResource Hint}">
-                            <Run Text="SecureGateway v"/><Run Text="{Binding AppVersion, Mode=OneTime}"/><Run Text=". Supports V2Ray (VMess) and Shadowsocks via the bundled v2ray-core engine."/>
+                            <Run Text="SecureGateway v"/><Run Text="{Binding AppVersion, Mode=OneTime}"/><Run Text="{loc:T '. Supports V2Ray (VMess) and Shadowsocks via the bundled v2ray-core engine.'}"/>
                         </TextBlock>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
-            <TabItem Header="Log">
+            <TabItem Header="{loc:T 'Log'}">
                 <Grid Margin="12,16,12,12">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <Button Content="Clear Log" Style="{StaticResource ModernButton}" Command="{Binding ClearLogCommand}"/>
+                        <Button Content="{loc:T 'Clear Log'}" Style="{StaticResource ModernButton}" Command="{Binding ClearLogCommand}"/>
                     </StackPanel>
                     <ListBox Grid.Row="1" ItemsSource="{Binding LogEntries}"
                              Background="#181825" Foreground="#CDD6F4"

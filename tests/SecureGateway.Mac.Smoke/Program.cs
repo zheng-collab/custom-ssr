@@ -43,6 +43,8 @@ namespace SecureGateway.Mac.Smoke
 
         private static void Run(string outDir)
         {
+            // English checks first, whatever the machine's language; Chinese is checked at the end.
+            SecureGateway.Localization.Loc.Init(SecureGateway.Localization.UiLanguage.English);
             var auth = new AuthService(new MacCredentialStore());
 
             Check("LoginWindow", () =>
@@ -257,6 +259,99 @@ namespace SecureGateway.Mac.Smoke
                 w.ForceClose();
                 Pump();
             });
+
+            Check("Chinese interface: every string has a translation", () =>
+            {
+                var L = typeof(SecureGateway.Localization.Loc);
+                SecureGateway.Localization.Loc.Init(SecureGateway.Localization.UiLanguage.Chinese);
+                var root = FindRepoRoot();
+                var missing = new System.Collections.Generic.SortedSet<string>();
+                bool Translated(string english) => SecureGateway.Localization.Loc.T(english) != english;
+                // Interpolated C# strings: holes become sample values, then the pattern must match.
+                string Sample(string interpolated) =>
+                    System.Text.RegularExpressions.Regex.Replace(interpolated, @"\{[^{}]+\}", "X1").Replace("\\n", "\n");
+
+                int xamlKeys = 0, codeKeys = 0, sinkKeys = 0;
+                var xamlFiles = Directory.GetFiles(Path.Combine(root, "src"), "*.xaml", SearchOption.AllDirectories)
+                    .Concat(Directory.GetFiles(Path.Combine(root, "src"), "*.axaml", SearchOption.AllDirectories))
+                    .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}"));
+                foreach (var f in xamlFiles)
+                    foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(f), @"\{loc:T '([^']*)'\}"))
+                    { xamlKeys++; if (!Translated(m.Groups[1].Value)) missing.Add($"{Path.GetFileName(f)}: {m.Groups[1].Value}"); }
+
+                // Loc.T("...") / Loc.T($"...") in code, plus literals handed to the message sinks.
+                var sinks = new System.Text.RegularExpressions.Regex(
+                    @"(?:Loc\.T\(|StatusText = |ShowError\(|ShowInfo\(|SetBusy\(true, |SetLoading\(true, |AuthResult\.(?:Failure|NetworkFailure|Success)\(|SetStatus\(EngineStatus\.\w+,\s*|ShowMessageAsync\([^,]+,\s*|ShowMessageAsync\(|ConfirmAsync\(|progress\?\.Invoke\(|LockoutText = |BootstrapStatus = )(\$?)""((?:[^""\\]|\\.)*)""(?:\s*\+\s*\$?""((?:[^""\\]|\\.)*)"")*");
+                var codeFiles = Directory.GetFiles(Path.Combine(root, "src"), "*.cs", SearchOption.AllDirectories)
+                    .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}") && !f.EndsWith("Loc.cs"));
+                foreach (var f in codeFiles)
+                    foreach (System.Text.RegularExpressions.Match m in sinks.Matches(File.ReadAllText(f)))
+                    {
+                        // "a" + "b" literals are one message at run time.
+                        var text = m.Groups[2].Value + string.Concat(m.Groups[3].Captures.Select(c => c.Value));
+                        if (text.Length == 0) continue;
+                        // Holes that contain quotes (plural "attempt(s)") cut the literal short; those are
+                        // checked with real values below instead.
+                        if (text.EndsWith("? ")) continue;
+                        if (m.Value.StartsWith("Loc.T(")) codeKeys++; else sinkKeys++;
+                        var sample = m.Groups[1].Value == "$" ? Sample(text) : text.Replace("\\n", "\n");
+                        if (!Translated(sample)) missing.Add($"{Path.GetFileName(f)}: {text}");
+                    }
+                Console.WriteLine($"  checked {xamlKeys} window texts, {codeKeys} Loc.T calls, {sinkKeys} message literals");
+                foreach (var miss in missing) Console.WriteLine($"  missing: {miss}");
+                Expect(missing.Count == 0, $"no untranslated strings ({missing.Count} missing)");
+
+                // Patterns: names stay, the words around them translate, nested messages translate too.
+                Expect(SecureGateway.Localization.Loc.T("Delete server 'Vultr (SS)'?") == "删除服务器“Vultr (SS)”？", "pattern with a name");
+                Expect(SecureGateway.Localization.Loc.T("Connected to 149.248.11.216:8388 via Shadowsocks (Aes256Gcm)") == "已通过 Shadowsocks (Aes256Gcm) 连接到 149.248.11.216:8388",
+                       "longest pattern wins (" + SecureGateway.Localization.Loc.T("Connected to 149.248.11.216:8388 via Shadowsocks (Aes256Gcm)") + ")");
+                Expect(SecureGateway.Localization.Loc.T("Invalid login credentials\n2 attempts remaining before lockout.") == "邮箱或密码错误\n还剩 2 次尝试机会，之后将被锁定。", "nested message translated");
+                Expect(SecureGateway.Localization.Loc.T("some unknown engine text") == "some unknown engine text", "unknown text falls back to English");
+                Expect(SecureGateway.Localization.Loc.T("1 attempt remaining") == "还剩 1 次尝试机会" &&
+                       SecureGateway.Localization.Loc.T("3 attempts remaining") == "还剩 3 次尝试机会", "attempts remaining, singular and plural");
+            });
+
+            Check("Chinese interface renders", () =>
+            {
+                SecureGateway.Localization.Loc.Init(SecureGateway.Localization.UiLanguage.Chinese);
+                var w = new MainWindow(auth, (App)Application.Current);
+                w.Show();
+                Pump(6);
+                var vm = w.ViewModel;
+                vm.Servers.Add(new ServerProfile { Name = "Vultr (SS)", Address = "149.248.11.216", Port = 8388, Protocol = ProxyProtocol.Shadowsocks, IsShared = true });
+                vm.SelectedServer = vm.Servers[0];
+                vm.StatusText = "Disconnected";
+                Pump();
+                Expect(vm.ConnectButtonText == "连接" && vm.StatusHeadline == "未连接", "Home wording in Chinese");
+                Expect(vm.StatusDetail == "", "repeated status hidden in Chinese too");
+                Snapshot(w, Path.Combine(outDir, "zh-home.png"));
+                var tabs = w.GetVisualDescendants().OfType<TabControl>().FirstOrDefault();
+                if (tabs != null)
+                {
+                    tabs.SelectedIndex = 1; Pump(); Snapshot(w, Path.Combine(outDir, "zh-servers.png"));
+                    tabs.SelectedIndex = 2; Pump(); Snapshot(w, Path.Combine(outDir, "zh-settings.png"));
+                }
+                vm.IsConnected = true; vm.StatusText = "Connected to 149.248.11.216:8388 via Shadowsocks (Aes256Gcm)";
+                if (tabs != null) tabs.SelectedIndex = 0;
+                Pump();
+                Expect(vm.StatusDetail.StartsWith("已通过"), "engine status translated");
+                Snapshot(w, Path.Combine(outDir, "zh-connected.png"));
+                vm.IsConnected = false;
+                w.ShutdownCleanup(); w.ForceClose(); Pump();
+
+                var login = new LoginWindow(auth);
+                login.Show(); Pump();
+                Snapshot(login, Path.Combine(outDir, "zh-login.png"));
+                login.Close(); Pump();
+                SecureGateway.Localization.Loc.Init(SecureGateway.Localization.UiLanguage.English);
+            });
+        }
+
+        private static string FindRepoRoot()
+        {
+            var d = new DirectoryInfo(AppContext.BaseDirectory);
+            while (d != null && !File.Exists(Path.Combine(d.FullName, "SecureGateway.sln"))) d = d.Parent;
+            return d?.FullName ?? Directory.GetCurrentDirectory();
         }
 
         private static void Pump(int cycles = 3)

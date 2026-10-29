@@ -1,4 +1,5 @@
 using System;
+using SecureGateway.Localization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -27,6 +28,8 @@ namespace SecureGateway.Mac
 
         public override void Initialize()
         {
+            // Before any window exists: every {loc:T} in XAML is resolved when a window loads.
+            Loc.Init(new SecureGateway.Core.Config.ConfigManager().Config.Language);
             AvaloniaXamlLoader.Load(this);
         }
 
@@ -108,17 +111,17 @@ namespace SecureGateway.Mac
 
             var menu = new NativeMenu();
 
-            var show = new NativeMenuItem("Show SecureGateway");
+            var show = new NativeMenuItem(Loc.T("Show SecureGateway"));
             show.Click += (_, _) => ShowMain();
             menu.Add(show);
             menu.Add(new NativeMenuItemSeparator());
 
-            _connectItem = new NativeMenuItem("Connect");
+            _connectItem = new NativeMenuItem(Loc.T("Connect"));
             _connectItem.Click += (_, _) => _mainWindow?.ViewModel.ToggleConnectionCommand.Execute(null);
             menu.Add(_connectItem);
             menu.Add(new NativeMenuItemSeparator());
 
-            var quit = new NativeMenuItem("Quit SecureGateway");
+            var quit = new NativeMenuItem(Loc.T("Quit SecureGateway"));
             quit.Click += (_, _) => Quit();
             menu.Add(quit);
 
@@ -130,7 +133,7 @@ namespace SecureGateway.Mac
                 {
                     if (e.PropertyName == nameof(_mainWindow.ViewModel.IsConnected))
                         Dispatcher.UIThread.Post(() =>
-                            _connectItem.Header = _mainWindow.ViewModel.IsConnected ? "Disconnect" : "Connect");
+                            _connectItem.Header = Loc.T(_mainWindow.ViewModel.IsConnected ? "Disconnect" : "Connect"));
                 };
 
             TrayIcon.SetIcons(this, new TrayIcons { _tray });

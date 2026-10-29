@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using SecureGateway.Localization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
@@ -15,7 +16,8 @@ namespace SecureGateway.Mac.Views
 
         private MessageWindow(string title, string message, Kind kind, bool confirm)
         {
-            Title = title;
+            // Every dialog in the app comes through here, so translate once at this point.
+            Title = Loc.T(title);
             Width = 420;
             SizeToContent = SizeToContent.Height;
             CanResize = false;
@@ -32,7 +34,7 @@ namespace SecureGateway.Mac.Views
 
             var text = new TextBlock
             {
-                Text = message,
+                Text = Loc.T(message),
                 TextWrapping = TextWrapping.Wrap,
                 Foreground = new SolidColorBrush(Color.Parse("#CDD6F4")),
                 FontSize = 13,
@@ -48,9 +50,9 @@ namespace SecureGateway.Mac.Views
 
             if (confirm)
             {
-                var no = new Button { Content = "No", MinWidth = 90 };
+                var no = new Button { Content = Loc.T("No"), MinWidth = 90 };
                 no.Click += (_, _) => { _result = false; Close(); };
-                var yes = new Button { Content = "Yes", MinWidth = 90 };
+                var yes = new Button { Content = Loc.T("Yes"), MinWidth = 90 };
                 yes.Classes.Add("primary");
                 yes.Click += (_, _) => { _result = true; Close(); };
                 buttons.Children.Add(no);
@@ -58,7 +60,7 @@ namespace SecureGateway.Mac.Views
             }
             else
             {
-                var ok = new Button { Content = "OK", MinWidth = 90 };
+                var ok = new Button { Content = Loc.T("OK"), MinWidth = 90 };
                 ok.Classes.Add("primary");
                 ok.Click += (_, _) => { _result = true; Close(); };
                 buttons.Children.Add(ok);

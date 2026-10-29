@@ -19,6 +19,9 @@ namespace SecureGateway.Models
         [JsonConverter(typeof(StringEnumConverter))]
         public ProxyMode ProxyMode { get; set; } = ProxyMode.Rule;
 
+        [JsonConverter(typeof(StringEnumConverter))]
+        public SecureGateway.Localization.UiLanguage Language { get; set; } = SecureGateway.Localization.UiLanguage.Auto;
+
         public bool AutoStart { get; set; } = false;
         public bool AutoConnect { get; set; } = false;
         public bool MinimizeToTray { get; set; } = true;

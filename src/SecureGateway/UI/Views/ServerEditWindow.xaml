@@ -1,8 +1,9 @@
 <Window x:Class="SecureGateway.UI.Views.ServerEditWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:SecureGateway.UI"
         xmlns:models="clr-namespace:SecureGateway.Models;assembly=SecureGateway.Core"
-        Title="Server Configuration" Height="580" Width="520"
+        Title="{loc:T 'Server Configuration'}" Height="580" Width="520"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
         Background="#1E1E2E">
 
@@ -42,12 +43,12 @@
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel>
                 <!-- General settings -->
-                <TextBlock Text="General" FontSize="16" FontWeight="Bold" Foreground="#89B4FA" Margin="0,0,0,8"/>
+                <TextBlock Text="{loc:T 'General'}" FontSize="16" FontWeight="Bold" Foreground="#89B4FA" Margin="0,0,0,8"/>
 
-                <TextBlock Text="Server Name"/>
+                <TextBlock Text="{loc:T 'Server Name'}"/>
                 <TextBox x:Name="TxtName" Text="{Binding Name}"/>
 
-                <TextBlock Text="Address (IP or domain)"/>
+                <TextBlock Text="{loc:T 'Address (IP or domain)'}"/>
                 <TextBox x:Name="TxtAddress" Text="{Binding Address}"/>
 
                 <Grid>
@@ -57,11 +58,11 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0">
-                        <TextBlock Text="Port"/>
+                        <TextBlock Text="{loc:T 'Port'}"/>
                         <TextBox x:Name="TxtPort" Text="{Binding Port}"/>
                     </StackPanel>
                     <StackPanel Grid.Column="2">
-                        <TextBlock Text="Protocol"/>
+                        <TextBlock Text="{loc:T 'Protocol'}"/>
                         <ComboBox x:Name="CmbProtocol" SelectedItem="{Binding Protocol}"
                                   SelectionChanged="OnProtocolChanged">
                             <models:ProxyProtocol>V2Ray</models:ProxyProtocol>
@@ -72,9 +73,9 @@
 
                 <!-- V2Ray Settings -->
                 <StackPanel x:Name="V2RayPanel" Margin="0,12,0,0">
-                    <TextBlock Text="V2Ray Settings" FontSize="16" FontWeight="Bold" Foreground="#89B4FA" Margin="0,0,0,8"/>
+                    <TextBlock Text="{loc:T 'V2Ray Settings'}" FontSize="16" FontWeight="Bold" Foreground="#89B4FA" Margin="0,0,0,8"/>
 
-                    <TextBlock Text="User ID (UUID)"/>
+                    <TextBlock Text="{loc:T 'User ID (UUID)'}"/>
                     <TextBox x:Name="TxtUserId" Text="{Binding V2RayUserId}"/>
 
                     <Grid>
@@ -84,11 +85,11 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
-                            <TextBlock Text="Alter ID"/>
+                            <TextBlock Text="{loc:T 'Alter ID'}"/>
                             <TextBox Text="{Binding V2RayAlterId}"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2">
-                            <TextBlock Text="Security"/>
+                            <TextBlock Text="{loc:T 'Security'}"/>
                             <ComboBox SelectedItem="{Binding V2RaySecurity}">
                                 <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">auto</sys:String>
                                 <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">aes-128-gcm</sys:String>
@@ -99,7 +100,7 @@
                         </StackPanel>
                     </Grid>
 
-                    <TextBlock Text="Transport"/>
+                    <TextBlock Text="{loc:T 'Transport'}"/>
                     <ComboBox x:Name="CmbTransport" SelectedItem="{Binding V2RayTransport}">
                         <models:V2RayTransport>TCP</models:V2RayTransport>
                         <models:V2RayTransport>WebSocket</models:V2RayTransport>
@@ -107,26 +108,26 @@
                         <models:V2RayTransport>GRPC</models:V2RayTransport>
                     </ComboBox>
 
-                    <TextBlock Text="Path"/>
+                    <TextBlock Text="{loc:T 'Path'}"/>
                     <TextBox Text="{Binding V2RayPath}"/>
 
-                    <TextBlock Text="Host"/>
+                    <TextBlock Text="{loc:T 'Host'}"/>
                     <TextBox Text="{Binding V2RayHost}"/>
 
-                    <CheckBox Content="Enable TLS" IsChecked="{Binding V2RayTls}" Margin="0,8"/>
+                    <CheckBox Content="{loc:T 'Enable TLS'}" IsChecked="{Binding V2RayTls}" Margin="0,8"/>
 
-                    <TextBlock Text="SNI (Server Name Indication)"/>
+                    <TextBlock Text="{loc:T 'SNI (Server Name Indication)'}"/>
                     <TextBox Text="{Binding V2RaySni}"/>
                 </StackPanel>
 
                 <!-- Shadowsocks Settings -->
                 <StackPanel x:Name="ShadowsocksPanel" Visibility="Collapsed" Margin="0,12,0,0">
-                    <TextBlock Text="Shadowsocks Settings" FontSize="16" FontWeight="Bold" Foreground="#89B4FA" Margin="0,0,0,8"/>
+                    <TextBlock Text="{loc:T 'Shadowsocks Settings'}" FontSize="16" FontWeight="Bold" Foreground="#89B4FA" Margin="0,0,0,8"/>
 
-                    <TextBlock Text="Password"/>
+                    <TextBlock Text="{loc:T 'Password'}"/>
                     <TextBox Text="{Binding SsPassword}"/>
 
-                    <TextBlock Text="Encryption"/>
+                    <TextBlock Text="{loc:T 'Encryption'}"/>
                     <ComboBox SelectedItem="{Binding SsEncryption}">
                         <models:ShadowsocksEncryption>Aes128Gcm</models:ShadowsocksEncryption>
                         <models:ShadowsocksEncryption>Aes256Gcm</models:ShadowsocksEncryption>
@@ -134,15 +135,15 @@
                         <models:ShadowsocksEncryption>XChaCha20IetfPoly1305</models:ShadowsocksEncryption>
                     </ComboBox>
 
-                    <TextBlock Text="Plugin (optional)"/>
+                    <TextBlock Text="{loc:T 'Plugin (optional)'}"/>
                     <TextBox Text="{Binding SsPlugin}"/>
 
-                    <TextBlock Text="Plugin Options"/>
+                    <TextBlock Text="{loc:T 'Plugin Options'}"/>
                     <TextBox Text="{Binding SsPluginOptions}"/>
                 </StackPanel>
 
                 <!-- Local Ports -->
-                <TextBlock Text="Local Ports" FontSize="16" FontWeight="Bold" Foreground="#89B4FA" Margin="0,12,0,8"/>
+                <TextBlock Text="{loc:T 'Local Ports'}" FontSize="16" FontWeight="Bold" Foreground="#89B4FA" Margin="0,12,0,8"/>
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -150,26 +151,26 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0">
-                        <TextBlock Text="SOCKS5 Port"/>
+                        <TextBlock Text="{loc:T 'SOCKS5 Port'}"/>
                         <TextBox Text="{Binding LocalSocksPort}"/>
                     </StackPanel>
                     <StackPanel Grid.Column="2">
-                        <TextBlock Text="HTTP Port"/>
+                        <TextBlock Text="{loc:T 'HTTP Port'}"/>
                         <TextBox Text="{Binding LocalHttpPort}"/>
                     </StackPanel>
                 </Grid>
 
-                <TextBlock Text="Remarks"/>
+                <TextBlock Text="{loc:T 'Remarks'}"/>
                 <TextBox Text="{Binding Remarks}" AcceptsReturn="True" Height="50" TextWrapping="Wrap"/>
             </StackPanel>
         </ScrollViewer>
 
         <!-- Buttons -->
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Content="Cancel" Width="100" Height="36" Margin="0,0,10,0"
+            <Button Content="{loc:T 'Cancel'}" Width="100" Height="36" Margin="0,0,10,0"
                     Background="#45475A" Foreground="#CDD6F4" BorderBrush="#585B70"
                     Click="OnCancel"/>
-            <Button Content="Save" Width="100" Height="36"
+            <Button Content="{loc:T 'Save'}" Width="100" Height="36"
                     Background="#89B4FA" Foreground="#1E1E2E" BorderBrush="#89B4FA" FontWeight="Bold"
                     Click="OnSave"/>
         </StackPanel>
