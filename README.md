@@ -149,6 +149,26 @@ Or run the published executable from `build/publish/SecureGateway.exe`.
    - Password: your-strong-password
    - Encryption: AES-256-GCM
 
+### Second server that exits from the office (NucBox / any office PC)
+
+Some sites refuse every Vultr address because it is a data-centre network. This adds a second server to the app whose traffic leaves from an office computer's normal internet connection:
+
+```
+staff app --Shadowsocks :8389--> VPS --tunnel opened by the office PC :8390--> office PC --> website
+```
+
+The office PC dials out, so the office router needs no port forwarding. The existing server on 8388 is unchanged.
+
+1. **On the VPS** (Vultr console, as root):
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/zheng-collab/custom-ssr/HEAD/scripts/office-exit-relay.sh -o office-exit-relay.sh
+   SG_EMAIL=admin@fourthzodiac.com SG_PASSWORD='...' bash office-exit-relay.sh
+   ```
+   It prints the command for step 2 (with the tunnel key filled in) and a `ss://` link for the new server; with the admin login it also publishes the server to every user's app.
+2. **On the office PC**, paste the printed command: the Linux line in a terminal, or the Windows line in PowerShell opened with *Run as administrator*. It installs a checksum-verified v2ray-core, starts it at boot (systemd service, or a SYSTEM scheduled task on Windows), turns off sleep on mains power, and reports whether the tunnel is up and which address staff will appear as.
+
+Behaviour: while the office PC is off, connections on the office server fail rather than falling back to the VPS address. Destinations on the office LAN (private, loopback and link-local ranges, also when reached by hostname) are refused. Throughput is limited by the office upload speed. Uninstall on Linux with `sudo systemctl disable --now sg-exit`; on Windows set `$env:SG_UNINSTALL='1'` and run the same command.
+
 ## Proxy Modes
 
 | Mode | Description |
