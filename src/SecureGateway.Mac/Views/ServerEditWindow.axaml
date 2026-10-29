@@ -95,7 +95,7 @@
 
     <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,16,0,0">
       <Button Content="Cancel" Width="100" Click="OnCancel"/>
-      <Button Content="Save" Width="100" Classes="accent" Click="OnSave"/>
+      <Button Content="Save" Width="100" Classes="primary" Click="OnSave"/>
     </StackPanel>
   </Grid>
 </Window>

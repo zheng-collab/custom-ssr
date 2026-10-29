@@ -2,156 +2,172 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="using:SecureGateway.Mac"
         x:Class="SecureGateway.Mac.Views.MainWindow"
-        Title="SecureGateway - Enterprise VPN Client" Width="920" Height="640"
-        MinWidth="720" MinHeight="500" WindowStartupLocation="CenterScreen">
+        Title="SecureGateway" Width="760" Height="640"
+        MinWidth="560" MinHeight="520" WindowStartupLocation="CenterScreen">
 
   <Window.Resources>
     <local:EnumBoolConverter x:Key="EnumBool"/>
-    <local:BoolToConnectTextConverter x:Key="ConnectText"/>
     <local:BoolToStatusBrushConverter x:Key="StatusBrush"/>
     <local:StringNotEmptyConverter x:Key="NotEmpty"/>
   </Window.Resources>
 
-  <Grid RowDefinitions="Auto,*,Auto">
+  <Grid RowDefinitions="Auto,*">
 
-    <!-- Header -->
-    <Border Grid.Row="0" Background="{StaticResource Mantle}" Padding="16,12">
-      <Grid ColumnDefinitions="Auto,*,Auto">
-        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="0">
-          <Ellipse Width="12" Height="12" Margin="0,0,10,0"
+    <!-- Header: brand left, account right. Connection state lives on Home, not here. -->
+    <Border Grid.Row="0" Background="{StaticResource Mantle}" Padding="20,10">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="8">
+          <Ellipse Width="10" Height="10"
                    Fill="{Binding IsConnected, Converter={StaticResource StatusBrush}, ConverterParameter=red}"/>
-          <TextBlock Text="SecureGateway" FontSize="18" FontWeight="Bold"/>
-          <TextBlock Text=" VPN" FontSize="18" Foreground="{StaticResource Blue}"/>
+          <TextBlock Text="SecureGateway" FontSize="16" FontWeight="SemiBold"/>
         </StackPanel>
-
-        <TextBlock Grid.Column="1" Text="{Binding StatusText}" VerticalAlignment="Center" Margin="12,0"
-                   HorizontalAlignment="Center" Classes="label" FontSize="13"
-                   TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding StatusText}"/>
-
-        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="12">
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Spacing="8">
           <TextBlock Text="{Binding UserEmail}" Classes="label" VerticalAlignment="Center"/>
-          <Button Content="Sign Out" Padding="10,5" FontSize="11" Click="OnSignOut"/>
-          <Button Classes="connect" Command="{Binding ToggleConnectionCommand}"
-                  Content="{Binding IsConnected, Converter={StaticResource ConnectText}}"
-                  Background="{Binding IsConnected, Converter={StaticResource StatusBrush}}"/>
+          <Button Content="Sign out" Classes="quiet" FontSize="12" Padding="8,4" Click="OnSignOut"/>
         </StackPanel>
       </Grid>
     </Border>
 
-    <!-- Tabs -->
     <TabControl Grid.Row="1" Padding="0" Margin="8,0,8,0">
 
-      <TabItem Header="Dashboard">
-        <Grid RowDefinitions="Auto,Auto,*" Margin="12,16,12,12">
-          <UniformGrid Grid.Row="0" Columns="4" Margin="0,0,0,16">
-            <Border Classes="card" Margin="0,0,8,0">
-              <StackPanel>
-                <TextBlock Text="Upload" Classes="label"/>
-                <TextBlock Text="{Binding UploadSpeed}" Classes="value" Foreground="{StaticResource Green}"/>
-              </StackPanel>
-            </Border>
-            <Border Classes="card" Margin="4,0,4,0">
-              <StackPanel>
-                <TextBlock Text="Download" Classes="label"/>
-                <TextBlock Text="{Binding DownloadSpeed}" Classes="value" Foreground="{StaticResource Blue}"/>
-              </StackPanel>
-            </Border>
-            <Border Classes="card" Margin="4,0,4,0">
-              <StackPanel>
-                <TextBlock Text="Latency" Classes="label"/>
-                <TextBlock Text="{Binding Latency}" Classes="value" Foreground="{StaticResource Yellow}"/>
-              </StackPanel>
-            </Border>
-            <Border Classes="card" Margin="8,0,0,0">
-              <StackPanel>
-                <TextBlock Text="Duration" Classes="label"/>
-                <TextBlock Text="{Binding ConnectionDuration}" Classes="value" Foreground="{StaticResource Mauve}"/>
-              </StackPanel>
-            </Border>
-          </UniformGrid>
+      <!-- HOME: one status, one action, one server choice. -->
+      <TabItem Header="Home">
+        <ScrollViewer>
+          <StackPanel MaxWidth="520" Margin="20,24,20,24" Spacing="16">
 
-          <Border Grid.Row="1" Classes="card" Margin="0,0,0,16">
-            <Grid ColumnDefinitions="*,Auto">
-              <StackPanel>
-                <TextBlock Text="Active Server" Classes="label"/>
-                <TextBlock Text="{Binding SelectedServer.Name, FallbackValue='No server selected'}"
-                           FontSize="16" FontWeight="SemiBold" Margin="0,4,0,2"/>
-                <TextBlock Text="{Binding ConnectionInfo}" Classes="label"/>
-              </StackPanel>
-              <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Spacing="8">
-                <Button Content="Test" Command="{Binding TestLatencyCommand}"/>
-                <Button Content="Reconnect" Classes="accent" Command="{Binding ConnectCommand}" IsVisible="{Binding IsConnected}"/>
-              </StackPanel>
-            </Grid>
-          </Border>
+            <Border Classes="card" Padding="24">
+              <StackPanel Spacing="18">
+                <StackPanel Orientation="Horizontal" Spacing="14">
+                  <Ellipse Width="16" Height="16" VerticalAlignment="Center"
+                           Fill="{Binding IsConnected, Converter={StaticResource StatusBrush}, ConverterParameter=red}"/>
+                  <StackPanel Spacing="2">
+                    <TextBlock Text="{Binding StatusHeadline}" FontSize="22" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding StatusDetail}" Classes="hint" MaxWidth="400"
+                               IsVisible="{Binding StatusDetail, Converter={StaticResource NotEmpty}}"/>
+                  </StackPanel>
+                </StackPanel>
 
-          <Border Grid.Row="2" Classes="card" VerticalAlignment="Top">
-            <StackPanel>
-              <TextBlock Text="Proxy Mode" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,12"/>
-              <UniformGrid Columns="3">
-                <RadioButton Content="Global Proxy" GroupName="ProxyMode" ToolTip.Tip="Everything goes through the VPN (except LAN and your bypass list)."
-                             IsChecked="{Binding ProxyMode, Converter={StaticResource EnumBool}, ConverterParameter=Global, Mode=TwoWay}"/>
-                <RadioButton Content="Rule-Based" GroupName="ProxyMode" ToolTip.Tip="Mainland-China sites and your bypass list connect directly; everything else goes through the VPN."
-                             IsChecked="{Binding ProxyMode, Converter={StaticResource EnumBool}, ConverterParameter=Rule, Mode=TwoWay}"/>
-                <RadioButton Content="Direct (No Proxy)" GroupName="ProxyMode" ToolTip.Tip="Tunnel stays up but the system proxy is off."
-                             IsChecked="{Binding ProxyMode, Converter={StaticResource EnumBool}, ConverterParameter=Direct, Mode=TwoWay}"/>
-              </UniformGrid>
-              <TextBlock Foreground="{StaticResource Overlay}" FontSize="11" TextWrapping="Wrap" Margin="0,10,0,0"
-                         Text="Rule-Based: mainland-China sites connect directly, everything else goes through the VPN. A site that blocks the VPN's IP can be added to the bypass list in Settings."/>
-            </StackPanel>
-          </Border>
-        </Grid>
+                <StackPanel Spacing="6">
+                  <TextBlock Text="Server" Classes="label"/>
+                  <Grid ColumnDefinitions="*,Auto">
+                    <ComboBox Name="CmbServer" ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}"
+                              IsEnabled="{Binding IsIdle}" PlaceholderText="No servers yet"
+                              AutomationProperties.Name="Server">
+                      <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                          <TextBlock Text="{Binding Name}"/>
+                        </DataTemplate>
+                      </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <Button Grid.Column="1" Content="Test" Margin="8,0,0,0" Command="{Binding TestLatencyCommand}"
+                            ToolTip.Tip="Measure the latency to this server"/>
+                  </Grid>
+                  <TextBlock Classes="hint" IsVisible="{Binding !HasServers}"
+                             Text="Open the Servers tab and click Sync Shared to load your company's servers."/>
+                </StackPanel>
+
+                <Button Name="BtnConnect" Classes="connect"
+                        Classes.primary="{Binding !IsConnected}" Classes.disconnect="{Binding IsConnected}"
+                        Content="{Binding ConnectButtonText}" Command="{Binding ToggleConnectionCommand}"
+                        IsEnabled="{Binding !IsConnecting}"/>
+
+                <!-- Live numbers only while connected; zeros are noise. -->
+                <UniformGrid Columns="4" IsVisible="{Binding IsConnected}">
+                  <StackPanel>
+                    <TextBlock Text="Latency" Classes="label"/>
+                    <TextBlock Text="{Binding Latency}" FontSize="15" FontWeight="SemiBold"/>
+                  </StackPanel>
+                  <StackPanel>
+                    <TextBlock Text="Download" Classes="label"/>
+                    <TextBlock Text="{Binding DownloadSpeed}" FontSize="15" FontWeight="SemiBold"/>
+                  </StackPanel>
+                  <StackPanel>
+                    <TextBlock Text="Upload" Classes="label"/>
+                    <TextBlock Text="{Binding UploadSpeed}" FontSize="15" FontWeight="SemiBold"/>
+                  </StackPanel>
+                  <StackPanel>
+                    <TextBlock Text="Time" Classes="label"/>
+                    <TextBlock Text="{Binding ConnectionDuration}" FontSize="15" FontWeight="SemiBold"/>
+                  </StackPanel>
+                </UniformGrid>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+              <StackPanel Spacing="10">
+                <TextBlock Text="Routing" FontSize="14" FontWeight="SemiBold"/>
+                <WrapPanel>
+                  <RadioButton Content="Rule-Based" GroupName="ProxyMode" Margin="0,0,20,0"
+                               IsChecked="{Binding ProxyMode, Converter={StaticResource EnumBool}, ConverterParameter=Rule, Mode=TwoWay}"/>
+                  <RadioButton Content="Global Proxy" GroupName="ProxyMode" Margin="0,0,20,0"
+                               IsChecked="{Binding ProxyMode, Converter={StaticResource EnumBool}, ConverterParameter=Global, Mode=TwoWay}"/>
+                  <RadioButton Content="Direct (No Proxy)" GroupName="ProxyMode"
+                               IsChecked="{Binding ProxyMode, Converter={StaticResource EnumBool}, ConverterParameter=Direct, Mode=TwoWay}"/>
+                </WrapPanel>
+                <TextBlock Text="{Binding ModeDescription}" Classes="hint"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
       </TabItem>
 
+      <!-- SERVERS: list first; actions grouped by what they act on. -->
       <TabItem Header="Servers">
-        <Grid RowDefinitions="Auto,*" Margin="12,16,12,12">
-          <WrapPanel Grid.Row="0" Margin="0,0,0,12">
-            <Button Content="+ Add Server" Classes="accent" Command="{Binding AddServerCommand}" Margin="0,0,8,6"/>
+        <Grid RowDefinitions="Auto,*,Auto" Margin="12,16,12,12">
+          <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+            <WrapPanel>
+              <Button Content="Sync Shared" Classes="primary" Command="{Binding SyncSharedServersCommand}" Margin="0,0,8,6"
+                      ToolTip.Tip="Load the servers your company has shared"/>
+              <Button Content="Import from Clipboard" Command="{Binding ImportFromClipboardCommand}" Margin="0,0,8,6"
+                      ToolTip.Tip="Paste a vmess:// or ss:// link"/>
+              <Button Content="Add Server" Command="{Binding AddServerCommand}" Margin="0,0,8,6"/>
+            </WrapPanel>
+            <Button Grid.Column="1" Content="Test All" Command="{Binding TestAllLatencyCommand}" Margin="0,0,0,6"
+                    VerticalAlignment="Top"/>
+          </Grid>
+
+          <Panel Grid.Row="1">
+            <ListBox Name="ServerList" ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}"
+                     AutomationProperties.Name="Servers">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <StackPanel Margin="12,10" Spacing="3">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"/>
+                      <Border Classes="badge" Background="{StaticResource Surface1}" IsVisible="{Binding IsShared}">
+                        <TextBlock Text="Shared" FontSize="10" FontWeight="SemiBold"/>
+                      </Border>
+                    </StackPanel>
+                    <TextBlock Classes="label">
+                      <Run Text="{Binding Protocol}"/><Run Text="  ·  "/><Run Text="{Binding Address}"/><Run Text=":"/><Run Text="{Binding Port}"/>
+                    </TextBlock>
+                    <TextBlock Text="{Binding Remarks}" Classes="hint"
+                               IsVisible="{Binding Remarks, Converter={StaticResource NotEmpty}}"/>
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <StackPanel IsVisible="{Binding !HasServers}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                        MaxWidth="360" Spacing="6">
+              <TextBlock Text="No servers yet" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+              <TextBlock Classes="hint" TextAlignment="Center"
+                         Text="Click Sync Shared to load your company's servers, or copy a server link and click Import from Clipboard."/>
+            </StackPanel>
+          </Panel>
+
+          <WrapPanel Grid.Row="2" Margin="0,12,0,0">
+            <TextBlock Text="Selected server:" Classes="label" VerticalAlignment="Center" Margin="0,0,10,6"/>
             <Button Content="Edit" Command="{Binding EditServerCommand}" Margin="0,0,8,6"/>
             <Button Content="Duplicate" Command="{Binding DuplicateServerCommand}" Margin="0,0,8,6"/>
-            <Button Content="Delete" Classes="danger" Command="{Binding DeleteServerCommand}" Margin="0,0,8,6"/>
-            <Button Content="Import from Clipboard" Command="{Binding ImportFromClipboardCommand}" Margin="0,0,8,6"/>
-            <Button Content="Test All" Command="{Binding TestAllLatencyCommand}" Margin="0,0,8,6"/>
+            <Button Content="Test" Command="{Binding TestLatencyCommand}" Margin="0,0,8,6"/>
             <Button Content="Share QR" Command="{Binding ShowShareLinkCommand}" Margin="0,0,8,6"
                     ToolTip.Tip="Show a QR code / link for phone VPN apps"/>
-            <Border Background="{StaticResource Surface1}" Width="1" Height="24" Margin="4,0,12,6" VerticalAlignment="Center"/>
-            <Button Content="Sync Shared" Classes="accent" Command="{Binding SyncSharedServersCommand}" Margin="0,0,8,6"/>
-            <Button Content="Share" Command="{Binding ShareServerCommand}" Margin="0,0,8,6"/>
-            <Button Content="Unshare" Classes="danger" Command="{Binding UnshareServerCommand}" Margin="0,0,0,6"/>
+            <Button Content="Share" Command="{Binding ShareServerCommand}" Margin="0,0,8,6"
+                    ToolTip.Tip="Admins: publish this server to every user"/>
+            <Button Content="Unshare" Command="{Binding UnshareServerCommand}" Margin="0,0,8,6"
+                    ToolTip.Tip="Admins: stop sharing this server"/>
+            <Button Content="Delete" Classes="danger" Command="{Binding DeleteServerCommand}" Margin="0,0,0,6"/>
           </WrapPanel>
-
-          <ListBox Grid.Row="1" ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}">
-            <ListBox.ItemTemplate>
-              <DataTemplate>
-                <Border Background="{StaticResource Surface0}" CornerRadius="6" Padding="14" Margin="2">
-                  <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel>
-                      <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"/>
-                        <Border Background="{StaticResource Blue}" CornerRadius="3" Padding="6,1"
-                                VerticalAlignment="Center" IsVisible="{Binding IsShared}">
-                          <TextBlock Text="SHARED" FontSize="9" FontWeight="Bold" Foreground="{StaticResource Base}"/>
-                        </Border>
-                      </StackPanel>
-                      <TextBlock Classes="label" Margin="0,4,0,0">
-                        <Run Text="{Binding Protocol}"/><Run Text=" | "/><Run Text="{Binding Address}"/><Run Text=":"/><Run Text="{Binding Port}"/>
-                      </TextBlock>
-                      <TextBlock Text="{Binding Remarks}" Foreground="{StaticResource Overlay}" FontSize="11" Margin="0,2,0,0"
-                                 IsVisible="{Binding Remarks, Converter={StaticResource NotEmpty}}"/>
-                    </StackPanel>
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                      <TextBlock Classes="label" FontSize="11" HorizontalAlignment="Right">
-                        <Run Text="SOCKS: "/><Run Text="{Binding LocalSocksPort}"/>
-                      </TextBlock>
-                      <TextBlock Classes="label" FontSize="11" HorizontalAlignment="Right">
-                        <Run Text="HTTP: "/><Run Text="{Binding LocalHttpPort}"/>
-                      </TextBlock>
-                    </StackPanel>
-                  </Grid>
-                </Border>
-              </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
         </Grid>
       </TabItem>
 
@@ -164,17 +180,15 @@
             <CheckBox Content="Keep running in the menu bar when the window is closed" IsChecked="{Binding MinimizeToTray}"/>
 
             <TextBlock Text="Sites that bypass the VPN" Classes="h2" Margin="0,16,0,0"/>
-            <TextBlock Classes="label" FontSize="12" TextWrapping="Wrap"
+            <TextBlock Classes="hint"
                        Text="One per line. These connect directly with your real IP, in every proxy mode. Use it for sites that reject the VPN's address (banks, streaming, company portals). A domain covers all its subdomains; IPs and CIDR ranges work too. Applied when you click elsewhere; the tunnel restarts for a second."/>
             <TextBox Name="TxtDirectDomains" Text="{Binding DirectDomainsText, UpdateSourceTrigger=LostFocus}" AcceptsReturn="True" Height="120"
                      FontFamily="Menlo, Consolas, monospace" FontSize="12" TextWrapping="NoWrap"
-                     ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                     ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Sites that bypass the VPN"/>
 
             <TextBlock Text="About" Classes="h2" Margin="0,16,0,0"/>
-            <TextBlock Classes="label" FontSize="13" TextWrapping="Wrap">
-              <Run Text="SecureGateway v"/><Run Text="{Binding AppVersion, Mode=OneTime}"/><Run Text=" for macOS - Enterprise VPN Client"/>
-              <LineBreak/>
-              <Run Text="Supports V2Ray (VMess) and Shadowsocks protocols via the bundled v2ray-core engine."/>
+            <TextBlock Classes="hint">
+              <Run Text="SecureGateway v"/><Run Text="{Binding AppVersion, Mode=OneTime}"/><Run Text=" for macOS. Supports V2Ray (VMess) and Shadowsocks via the bundled v2ray-core engine."/>
             </TextBlock>
           </StackPanel>
         </ScrollViewer>
@@ -191,19 +205,5 @@
         </Grid>
       </TabItem>
     </TabControl>
-
-    <!-- Status bar -->
-    <Border Grid.Row="2" Background="{StaticResource Mantle}" Padding="12,6">
-      <Grid ColumnDefinitions="Auto,*,Auto">
-        <StackPanel Orientation="Horizontal" Spacing="6">
-          <Ellipse Width="8" Height="8" VerticalAlignment="Center"
-                   Fill="{Binding IsConnected, Converter={StaticResource StatusBrush}, ConverterParameter=red}"/>
-          <TextBlock Text="{Binding StatusText}" Classes="label" FontSize="11"/>
-        </StackPanel>
-        <TextBlock Grid.Column="2" Foreground="{StaticResource Overlay}" FontSize="11">
-          <Run Text="{Binding UserEmail, Mode=OneWay}"/><Run Text=" | SecureGateway v"/><Run Text="{Binding AppVersion, Mode=OneTime}"/>
-        </TextBlock>
-      </Grid>
-    </Border>
   </Grid>
 </Window>

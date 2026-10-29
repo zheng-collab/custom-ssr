@@ -11,7 +11,8 @@ namespace SecureGateway.UI.Converters
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             bool invert = parameter?.ToString() == "invert";
-            bool boolValue = value is bool b && b;
+            // Strings count as "true" when non-empty (server remarks, status details).
+            bool boolValue = value is bool b ? b : value is string s && s.Length > 0;
             if (invert) boolValue = !boolValue;
             return boolValue ? Visibility.Visible : Visibility.Collapsed;
         }
@@ -26,7 +27,7 @@ namespace SecureGateway.UI.Converters
         {
             bool connected = value is bool b && b;
             return connected
-                ? new SolidColorBrush(Color.FromRgb(76, 175, 80))   // Green
+                ? new SolidColorBrush(Color.FromRgb(0xA6, 0xE3, 0xA1))   // Green, same as macOS
                 : new SolidColorBrush(Color.FromRgb(158, 158, 158)); // Gray
         }
 
@@ -51,8 +52,8 @@ namespace SecureGateway.UI.Converters
         {
             bool connected = value is bool b && b;
             return connected
-                ? new SolidColorBrush(Color.FromRgb(76, 175, 80))   // Green
-                : new SolidColorBrush(Color.FromRgb(244, 67, 54));  // Red
+                ? new SolidColorBrush(Color.FromRgb(0xA6, 0xE3, 0xA1))   // Green, same as macOS
+                : new SolidColorBrush(Color.FromRgb(0xF3, 0x8B, 0xA8));  // Red, same as macOS
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

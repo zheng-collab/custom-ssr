@@ -51,7 +51,7 @@
 
             <CheckBox Content="Remember me" IsChecked="{Binding RememberMe}" Margin="0,12,0,0" FontSize="12"/>
 
-            <Button Name="BtnSubmit" Classes="accent" Content="{Binding SubmitText}" Height="42" FontSize="15"
+            <Button Name="BtnSubmit" Classes="primary" Content="{Binding SubmitText}" Height="42" FontSize="15"
                     HorizontalAlignment="Stretch" Margin="0,14,0,0" IsEnabled="{Binding CanInteract}" Click="OnSubmit"/>
           </StackPanel>
 
@@ -67,7 +67,7 @@
             <TextBlock Text="New password" Classes="field"/>
             <TextBox Text="{Binding NewPassword}" PasswordChar="●" IsEnabled="{Binding CanInteract}" KeyDown="OnResetEnter"/>
 
-            <Button Classes="accent" Content="Set new password" Height="42" FontSize="15" HorizontalAlignment="Stretch"
+            <Button Classes="primary" Content="Set new password" Height="42" FontSize="15" HorizontalAlignment="Stretch"
                     Margin="0,14,0,0" IsEnabled="{Binding CanInteract}" Click="OnApplyReset"/>
             <Button Classes="link" Content="Back to sign in" HorizontalAlignment="Center" Margin="0,12,0,0" Click="OnBackToSignIn"/>
           </StackPanel>

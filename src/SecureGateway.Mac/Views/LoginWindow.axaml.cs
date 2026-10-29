@@ -70,8 +70,8 @@ namespace SecureGateway.Mac.Views
 
         private void UpdateTabs()
         {
-            BtnSignInTab.Classes.Set("accent", !_vm.IsSignUpMode);
-            BtnSignUpTab.Classes.Set("accent", _vm.IsSignUpMode);
+            BtnSignInTab.Classes.Set("primary", !_vm.IsSignUpMode);
+            BtnSignUpTab.Classes.Set("primary", _vm.IsSignUpMode);
         }
 
         private void OnSignInTab(object sender, RoutedEventArgs e) => _vm.IsSignUpMode = false;

@@ -10,7 +10,7 @@
 2. [Installation](#2-installation)
 3. [First Launch & Sign In](#3-first-launch--sign-in)
 4. [Main Interface Overview](#4-main-interface-overview)
-5. [Dashboard Tab](#5-dashboard-tab)
+5. [Home Tab](#5-home-tab)
 6. [Servers Tab](#6-servers-tab)
 7. [Adding & Editing Servers](#7-adding--editing-servers)
 8. [Importing Servers from Share Links](#8-importing-servers-from-share-links)
@@ -151,56 +151,33 @@ The website and the app use the same account, so a password changed on the websi
 
 ## 4. Main Interface Overview
 
-The main window has four sections:
+The main window has a slim header and four tabs:
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  Header Bar (status indicator, user, connect)   │
+│  SecureGateway (status dot)      you@co  Sign out │
 ├─────────────────────────────────────────────────┤
-│  Tab Navigation: Dashboard | Servers | Settings | Log  │
+│  Home | Servers | Settings | Log                 │
 ├─────────────────────────────────────────────────┤
-│                                                 │
-│              Tab Content Area                   │
-│                                                 │
-├─────────────────────────────────────────────────┤
-│  Status Bar (connection status, version)        │
+│              Tab content                         │
 └─────────────────────────────────────────────────┘
 ```
 
-### Header Bar
+- **Status dot** — green when connected, red when not.
+- **Sign out** — logs you out and returns to the sign-in screen.
 
-- **Status Indicator** — Green circle when connected, red when disconnected.
-- **Status Text** — Shows current connection state (e.g., "Connected to Tokyo Server").
-- **User Email** — Your logged-in email address.
-- **Sign Out** — Logs you out and returns to the sign-in screen.
-- **Connect / Disconnect** — The large button to toggle your VPN connection.
+## 5. Home Tab
 
-### Status Bar
+Everything needed to connect is on one card:
 
-- Shows connection status and app version at the bottom of the window.
+- **Status** — "Not connected", "Connecting…" or "Connected", with details such as the server address underneath.
+- **Server** — pick the server to use. It is locked while connected; disconnect to switch. **Test** measures the latency to it.
+- **Connect / Disconnect** — the large button. Blue means Connect; the red outline means Disconnect.
+- **Latency, Download, Upload, Time** — appear only while connected.
 
-## 5. Dashboard Tab
+### Routing
 
-The Dashboard provides a real-time overview of your connection.
-
-### Stats Cards
-
-| Card | Description |
-|------|-------------|
-| **Upload** | Current upload speed (shown in green) |
-| **Download** | Current download speed (shown in blue) |
-| **Latency** | Round-trip time to the server in milliseconds (shown in yellow) |
-| **Duration** | How long you've been connected (shown in purple) |
-
-### Active Server Panel
-
-- Shows the name and details of the currently selected server.
-- **Test** button — Measures latency to the active server.
-- **Reconnect** button — Disconnects and reconnects (only visible when connected).
-
-### Proxy Mode Selector
-
-Choose how traffic is routed:
+The **Routing** card on Home chooses how traffic is routed:
 
 - **Global Proxy** — All internet traffic goes through the VPN (except LAN addresses and your bypass list).
 - **Rule-Based** — Mainland-China sites and your bypass list connect directly; everything else goes through the VPN.
@@ -325,7 +302,7 @@ SecureGateway can import servers from standard share link formats:
 
 ### Changing Proxy Mode
 
-- Use the radio buttons in the **Dashboard** tab.
+- Use the **Routing** card on the **Home** tab.
 - The change takes effect immediately, even while connected (the tunnel restarts for about a second when the routing changes).
 - In **Direct** mode, you can still manually configure apps to use `127.0.0.1:10808` (SOCKS5) or `127.0.0.1:10809` (HTTP).
 
@@ -592,7 +569,7 @@ It installs the latest `shadowsocks-rust` server as a static binary from GitHub 
 2. [安装](#2-安装)
 3. [首次启动与登录](#3-首次启动与登录)
 4. [主界面概览](#4-主界面概览)
-5. [仪表盘页](#5-仪表盘页)
+5. [主页（Home）](#5-主页home)
 6. [服务器页](#6-服务器页)
 7. [添加与编辑服务器](#7-添加与编辑服务器)
 8. [通过分享链接导入服务器](#8-通过分享链接导入服务器)
@@ -733,56 +710,33 @@ SecureGateway/
 
 ## 4. 主界面概览
 
-主窗口分为四个区域：
+主窗口由一个简洁的顶部栏和四个标签页组成：
 
 ```
 ┌──────────────────────────────────────────────────┐
-│  顶部栏（状态指示灯、用户信息、连接按钮）            │
+│  SecureGateway（状态圆点）      邮箱   Sign out     │
 ├──────────────────────────────────────────────────┤
-│  标签导航：仪表盘 | 服务器 | 设置 | 日志             │
+│  Home | Servers | Settings | Log                  │
 ├──────────────────────────────────────────────────┤
-│                                                  │
-│                标签页内容区域                       │
-│                                                  │
-├──────────────────────────────────────────────────┤
-│  底部状态栏（连接状态、版本号）                      │
+│                标签页内容                          │
 └──────────────────────────────────────────────────┘
 ```
 
-### 顶部栏
+- **状态圆点** — 已连接为绿色，未连接为红色。
+- **Sign out（退出登录）** — 登出并返回登录界面。
 
-- **状态指示灯** — 连接时为绿色圆点，断开时为红色。
-- **状态文本** — 显示当前连接状态（如"已连接到 Tokyo Server"）。
-- **用户邮箱** — 当前登录的邮箱地址。
-- **Sign Out（退出登录）** — 登出并返回登录界面。
-- **Connect / Disconnect（连接/断开）** — 切换 VPN 连接的大按钮。
+## 5. 主页（Home）
 
-### 底部状态栏
+连接所需的一切都在一张卡片上：
 
-- 显示连接状态和应用版本号。
+- **状态** — "Not connected（未连接）"、"Connecting…（连接中）"或"Connected（已连接）"，下方显示服务器地址等详情。
+- **Server（服务器）** — 选择要使用的线路。连接时不能切换，需先断开。**Test** 测量延迟。
+- **Connect / Disconnect** — 大按钮。蓝色为连接，红色边框为断开。
+- **Latency、Download、Upload、Time** — 仅在连接后显示。
 
-## 5. 仪表盘页
+### 路由（Routing）
 
-仪表盘提供连接的实时概览。
-
-### 统计卡片
-
-| 卡片 | 说明 |
-|------|------|
-| **Upload（上传）** | 当前上传速度（绿色显示） |
-| **Download（下载）** | 当前下载速度（蓝色显示） |
-| **Latency（延迟）** | 到服务器的往返时间，单位毫秒（黄色显示） |
-| **Duration（时长）** | 已连接的持续时间（紫色显示） |
-
-### 当前服务器信息面板
-
-- 显示当前选中服务器的名称和详细信息。
-- **Test（测试）** 按钮 — 测量到当前服务器的延迟。
-- **Reconnect（重新连接）** 按钮 — 断开并重新连接（仅在连接状态下可见）。
-
-### 代理模式选择器
-
-选择流量路由方式：
+主页上的 **Routing** 卡片用于选择流量路由方式：
 
 - **Global Proxy（全局代理）** — 所有网络流量都通过 VPN（局域网地址和"绕过列表"除外）。
 - **Rule-Based（规则模式）** — 中国大陆网站和"绕过列表"中的网站直连，其余流量通过 VPN。
@@ -907,7 +861,7 @@ SecureGateway 支持从标准分享链接格式导入服务器：
 
 ### 切换代理模式
 
-- 在**仪表盘**页使用单选按钮切换。
+- 在**主页（Home）**的 **Routing** 卡片中切换。
 - 即使在连接状态下，更改也会立即生效（路由变化时隧道会重启约一秒）。
 - 在**直连**模式下，您仍然可以手动将应用配置为使用 `127.0.0.1:10808`（SOCKS5）或 `127.0.0.1:10809`（HTTP）。
 

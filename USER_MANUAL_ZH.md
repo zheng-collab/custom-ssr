@@ -234,10 +234,10 @@ macOS 版做了签名，但**未经 Apple 公证**（公证需要每年 99 美�
 
 ### 7.2 连接
 
-1. 在 **Servers** 标签页选中一条线路（通常只有一条，已默认选中）。
-2. 回到 **Dashboard（仪表盘）**，点击大按钮 **Connect（连接）**。
-3. 几秒后状态变为绿色的 **Connected**，并显示服务器地址。
-4. 正常上网即可。仪表盘上的 **Upload / Download** 会随流量增长，**Latency（延迟）** 显示到服务器的响应时间。
+1. 在 **Home（主页）** 标签页的 **Server（服务器）** 列表中选中一条线路（通常已默认选中）。
+2. 点击蓝色大按钮 **Connect（连接）**。
+3. 几秒后状态变为绿色的 **Connected**，下方显示服务器地址，按钮变为红色边框的 **Disconnect**。
+4. 正常上网即可。连接后会显示 **Latency（延迟）**、**Download / Upload（下载 / 上传流量）** 和 **Time（连接时长）**。
 
 ### 7.3 断开
 
@@ -253,17 +253,15 @@ macOS 版做了签名，但**未经 Apple 公证**（公证需要每年 99 美�
 
 程序界面为英文，以下是各部分的含义。
 
-### Dashboard（仪表盘）
+### Home（主页）
 
 | 显示项 | 含义 |
 |--------|------|
-| Connect / Disconnect | 连接 / 断开按钮 |
-| Active Server | 当前使用的线路 |
-| Upload / Download | 本次连接累计上传 / 下载流量 |
-| Latency | 延迟（毫秒），显示 N/A 表示尚未测得或连接异常 |
-| Duration | 本次连接持续时间 |
-| Proxy Mode | 代理模式，见第 9 节 |
-| SOCKS / HTTP | 本机代理端口，供需要手动配置代理的软件使用 |
+| Not connected / Connected | 当前连接状态，下方是详细信息 |
+| Server | 选择要使用的线路；连接中不能切换，需先断开。Test 按钮测试延迟 |
+| Connect / Disconnect | 连接（蓝色）/ 断开（红色边框）按钮 |
+| Latency / Download / Upload / Time | 仅在连接后显示：延迟、累计下载 / 上传流量、连接时长 |
+| Routing | 代理模式，见第 9 节 |
 
 ### Servers（服务器）
 
@@ -293,7 +291,7 @@ macOS 版做了签名，但**未经 Apple 公证**（公证需要每年 99 美�
 
 ## 9. 代理模式
 
-在 Dashboard 的 **Proxy Mode** 中选择：
+在 Home 页的 **Routing** 卡片中选择：
 
 | 模式 | 说明 | 适用场景 |
 |------|------|----------|

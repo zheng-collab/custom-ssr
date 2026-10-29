@@ -223,6 +223,31 @@ namespace SecureGateway.Mac.Smoke
                     }
                 }
 
+                // Home in its other states: with servers, and connected (set directly; no network here).
+                var vmw = w.ViewModel;
+                Expect(vmw.ConnectButtonText == "Connect" && vmw.StatusHeadline == "Not connected", "idle wording");
+                vmw.Servers.Add(new ServerProfile { Name = "Vultr (SS)", Address = "149.248.11.216", Port = 8388, Protocol = ProxyProtocol.Shadowsocks, IsShared = true });
+                vmw.Servers.Add(new ServerProfile { Name = "US Office (via NucBox)", Address = "149.248.11.216", Port = 8389, Protocol = ProxyProtocol.Shadowsocks,
+                    IsShared = true, Remarks = "exits from the office connection; works while the office box is on" });
+                vmw.SelectedServer = vmw.Servers[0];
+                Expect(vmw.HasServers, "HasServers follows the list");
+                if (tabs != null) tabs.SelectedIndex = 1;
+                Pump();
+                Snapshot(w, Path.Combine(outDir, "main-servers-filled.png"));
+                if (tabs != null) tabs.SelectedIndex = 0;
+                vmw.IsConnected = true; vmw.StatusText = "Connected to 149.248.11.216:8388"; vmw.Latency = "182 ms";
+                vmw.DownloadSpeed = "12.4 MB"; vmw.UploadSpeed = "1.1 MB"; vmw.ConnectionDuration = "00:14:05";
+                Pump();
+                Expect(vmw.ConnectButtonText == "Disconnect" && vmw.StatusHeadline == "Connected", "connected wording");
+                Expect(w.FindControl<Button>("BtnConnect")?.Classes.Contains("disconnect") == true, "Disconnect button uses the outlined style");
+                Expect(w.FindControl<ComboBox>("CmbServer")?.IsEnabled == false, "server picker locked while connected");
+                Snapshot(w, Path.Combine(outDir, "main-connected.png"));
+                vmw.ProxyMode = SecureGateway.Models.ProxyMode.Global;
+                Expect(vmw.ModeDescription.StartsWith("Everything"), "mode description follows the selected mode");
+                vmw.ProxyMode = SecureGateway.Models.ProxyMode.Rule;
+                vmw.IsConnected = false;
+                Pump();
+
                 // Exercise a couple of commands that don't need the network.
                 w.ViewModel.ClearLogCommand.Execute(null);
                 Expect(w.ViewModel.LogEntries.Count == 0, "Clear Log empties the list");

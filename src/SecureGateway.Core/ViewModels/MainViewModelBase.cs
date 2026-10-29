@@ -66,6 +66,7 @@ namespace SecureGateway.UI.ViewModels
             Logger = new AppLogger(ConfigManager.GetLogDirectory());
             ConnectionService = new ConnectionService(ConfigManager, Logger, systemProxy);
 
+            Servers.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasServers));
             ConnectionService.StatusChanged += OnStatusChanged;
             ConnectionService.StatsUpdated += OnStatsUpdated;
             Logger.LogAdded += OnLogAdded;
@@ -93,16 +94,43 @@ namespace SecureGateway.UI.ViewModels
         public bool IsConnected
         {
             get => _isConnected;
-            set { if (SetProperty(ref _isConnected, value)) RefreshCommands(); }
+            set { if (SetProperty(ref _isConnected, value)) { RefreshCommands(); OnConnectionStateChanged(); } }
         }
 
         public bool IsConnecting
         {
             get => _isConnecting;
-            set { if (SetProperty(ref _isConnecting, value)) RefreshCommands(); }
+            set { if (SetProperty(ref _isConnecting, value)) { RefreshCommands(); OnConnectionStateChanged(); } }
         }
 
-        public string StatusText { get => _statusText; set => SetProperty(ref _statusText, value); }
+        // Display text shared by both apps, so Windows and macOS say the same thing.
+        public string StatusHeadline => IsConnecting ? "Connecting…" : IsConnected ? "Connected" : "Not connected";
+        public string ConnectButtonText => IsConnecting ? "Connecting…" : IsConnected ? "Disconnect" : "Connect";
+        public bool IsIdle => !IsConnected && !IsConnecting;
+        public bool HasServers => Servers.Count > 0;
+
+        public string ModeDescription => ProxyMode switch
+        {
+            ProxyMode.Global => "Everything goes through the VPN, except your bypass list.",
+            ProxyMode.Rule => "Mainland-China sites and your bypass list connect directly. Everything else goes through the VPN.",
+            _ => "The VPN stays connected, but apps only use it if you set them to.",
+        };
+
+        private void OnConnectionStateChanged()
+        {
+            OnPropertyChanged(nameof(StatusHeadline));
+            OnPropertyChanged(nameof(ConnectButtonText));
+            OnPropertyChanged(nameof(IsIdle));
+        }
+
+        public string StatusText
+        {
+            get => _statusText;
+            set { if (SetProperty(ref _statusText, value)) OnPropertyChanged(nameof(StatusDetail)); }
+        }
+
+        /// <summary>StatusText under the headline, minus the bare words that only repeat it.</summary>
+        public string StatusDetail => _statusText is null or "Disconnected" or "Connected" or "Connecting..." ? "" : _statusText;
         public string ConnectionInfo { get => _connectionInfo; set => SetProperty(ref _connectionInfo, value); }
         public string UploadSpeed { get => _uploadSpeed; set => SetProperty(ref _uploadSpeed, value); }
         public string DownloadSpeed { get => _downloadSpeed; set => SetProperty(ref _downloadSpeed, value); }
@@ -145,7 +173,12 @@ namespace SecureGateway.UI.ViewModels
         public ProxyMode ProxyMode
         {
             get => _proxyMode;
-            set { if (SetProperty(ref _proxyMode, value)) FireAndForget(ConnectionService.ChangeProxyModeAsync(value), "change proxy mode"); }
+            set
+            {
+                if (!SetProperty(ref _proxyMode, value)) return;
+                OnPropertyChanged(nameof(ModeDescription));
+                FireAndForget(ConnectionService.ChangeProxyModeAsync(value), "change proxy mode");
+            }
         }
 
         /// <summary>
@@ -370,6 +403,7 @@ namespace SecureGateway.UI.ViewModels
             _directDomainsText = string.Join(Environment.NewLine, RoutingOptions.NormalizeList(config.DirectDomains));
 
             OnPropertyChanged(nameof(ProxyMode));
+            OnPropertyChanged(nameof(ModeDescription));
             OnPropertyChanged(nameof(AutoStart));
             OnPropertyChanged(nameof(AutoConnect));
             OnPropertyChanged(nameof(MinimizeToTray));

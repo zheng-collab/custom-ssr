@@ -51,7 +51,7 @@ namespace SecureGateway.Mac.Views
                 var no = new Button { Content = "No", MinWidth = 90 };
                 no.Click += (_, _) => { _result = false; Close(); };
                 var yes = new Button { Content = "Yes", MinWidth = 90 };
-                yes.Classes.Add("accent");
+                yes.Classes.Add("primary");
                 yes.Click += (_, _) => { _result = true; Close(); };
                 buttons.Children.Add(no);
                 buttons.Children.Add(yes);
@@ -59,7 +59,7 @@ namespace SecureGateway.Mac.Views
             else
             {
                 var ok = new Button { Content = "OK", MinWidth = 90 };
-                ok.Classes.Add("accent");
+                ok.Classes.Add("primary");
                 ok.Click += (_, _) => { _result = true; Close(); };
                 buttons.Children.Add(ok);
             }

@@ -49,7 +49,7 @@ namespace SecureGateway.Mac.Views
             root.Children.Add(linkBox);
 
             var copy = new Button { Content = "Copy link", MinWidth = 110 };
-            copy.Classes.Add("accent");
+            copy.Classes.Add("primary");
             copy.Click += async (_, _) =>
             {
                 try
