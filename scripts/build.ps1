@@ -59,9 +59,13 @@ function Initialize-Signing {
 
     if ($SignCert) {
         if (-not (Test-Path $SignCert)) { Write-Host "  Certificate not found: $SignCert" -ForegroundColor Red; exit 1 }
-        $secure = Read-Host -Prompt "  PFX password" -AsSecureString
-        $pw = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
-            [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure))
+        if ($env:SIGN_PFX_PASSWORD) {
+            $pw = $env:SIGN_PFX_PASSWORD   # CI (GitHub secret); never prompt there
+        } else {
+            $secure = Read-Host -Prompt "  PFX password" -AsSecureString
+            $pw = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
+                [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure))
+        }
         $script:CertArgs = @("/f", $SignCert, "/p", $pw)
     } else {
         $script:CertArgs = @("/sha1", $SignThumbprint)

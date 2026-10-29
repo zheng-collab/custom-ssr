@@ -43,6 +43,11 @@ jobs:
   windows:
     name: Windows installer + zip
     runs-on: windows-latest
+    # Code signing with the company certificate (docs/ANTIVIRUS.md). Without these two
+    # repository secrets the build still works, but the Windows files are unsigned.
+    env:
+      SIGN_PFX_BASE64: ${{ secrets.SIGN_PFX_BASE64 }}
+      SIGN_PFX_PASSWORD: ${{ secrets.SIGN_PFX_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -54,9 +59,37 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         shell: bash
         run: sed -i "s#<Version>.*</Version>#<Version>${GITHUB_REF_NAME#v}</Version>#" Directory.Build.props && cat Directory.Build.props
+      - name: Load the code-signing certificate
+        id: cert
+        if: env.SIGN_PFX_BASE64 != ''
+        shell: pwsh
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP 'sign.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SIGN_PFX_BASE64))
+          $cert = New-Object Security.Cryptography.X509Certificates.X509Certificate2($pfx, $env:SIGN_PFX_PASSWORD)
+          # The certificate is self-signed: trust it on this runner so "signtool verify /pa" passes.
+          foreach ($name in 'Root', 'TrustedPublisher') {
+            $store = New-Object Security.Cryptography.X509Certificates.X509Store($name, 'LocalMachine')
+            $store.Open('ReadWrite'); $store.Add($cert); $store.Close()
+          }
+          $cer = Join-Path $env:RUNNER_TEMP 'SecureGateway-CodeSign.cer'
+          [IO.File]::WriteAllBytes($cer, $cert.Export('Cert'))
+          "pfx=$pfx" >> $env:GITHUB_OUTPUT
+          "cer=$cer" >> $env:GITHUB_OUTPUT
+          Write-Host "Signing as $($cert.Subject), thumbprint $($cert.Thumbprint), valid until $($cert.NotAfter)"
+      - name: Warn when a release is built unsigned
+        if: startsWith(github.ref, 'refs/tags/v') && env.SIGN_PFX_BASE64 == ''
+        shell: bash
+        run: echo "::warning title=Unsigned release::Secret SIGN_PFX_BASE64 is not set, so this release's Windows files are NOT signed. See docs/ANTIVIRUS.md."
       - name: Build, publish, package
         shell: pwsh
-        run: .\scripts\build.ps1 -Installer -Zip
+        run: |
+          $pfx = '${{ steps.cert.outputs.pfx }}'
+          if ($pfx) { .\scripts\build.ps1 -Installer -Zip -SignCert $pfx } else { .\scripts\build.ps1 -Installer -Zip }
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          # Publish the public half of the certificate with the release, for trust-cert.ps1 on staff PCs.
+          if ('${{ steps.cert.outputs.cer }}') { Copy-Item '${{ steps.cert.outputs.cer }}' build\ }
+          Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $env:RUNNER_TEMP 'sign.pfx')
       # GitHub's artifact service occasionally times out (CreateArtifact request timeout);
       # a second attempt after a pause almost always succeeds. compression-level 0: the
       # files are already compressed, so this only wastes time.
@@ -68,6 +101,7 @@ jobs:
           path: |
             build/SecureGateway-Setup.exe
             build/SecureGateway-win-x64.zip
+            build/SecureGateway-CodeSign.cer
           if-no-files-found: error
           compression-level: 0
       - if: steps.upload.outcome == 'failure'
@@ -81,6 +115,7 @@ jobs:
           path: |
             build/SecureGateway-Setup.exe
             build/SecureGateway-win-x64.zip
+            build/SecureGateway-CodeSign.cer
           if-no-files-found: error
           compression-level: 0
           overwrite: true

@@ -30,6 +30,21 @@ GPO path for many machines at once: *Computer Configuration → Policies → Win
 Security Settings → Public Key Policies → Trusted Publishers* (and *Trusted Root Certification
 Authorities*). Keep the `.pfx` secret — it is the signing key and is git-ignored.
 
+### Let GitHub sign every release (recommended)
+
+Releases built by GitHub Actions are only signed when the workflow has the key. Add it once as
+two repository secrets (GitHub → **Settings → Secrets and variables → Actions → New repository
+secret**):
+
+| Name | Value |
+|------|-------|
+| `SIGN_PFX_BASE64` | the `.pfx` file as base64 — on the build PC: `[Convert]::ToBase64String([IO.File]::ReadAllBytes("certs\SecureGateway-CodeSign.pfx")) \| Set-Clipboard`, then paste |
+| `SIGN_PFX_PASSWORD` | the password chosen in `make-selfsigned-cert.ps1` |
+
+From then on every tagged release signs `SecureGateway.exe`, `v2ray.exe` and the installer, and
+attaches `SecureGateway-CodeSign.cer`. Without the secrets the build still succeeds but shows an
+"Unsigned release" warning in the Actions run.
+
 ## 3. Defender exclusion at install time  (done in the installer)
 The installer offers a checked task **"Add this folder to Windows Defender exclusions"** that runs
 `Add-MpPreference -ExclusionPath <install folder>`. This stops Defender from deleting `v2ray.exe`.
