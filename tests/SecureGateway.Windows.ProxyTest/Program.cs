@@ -13,7 +13,15 @@ static class Program
 {
     const string Path_ = @"Software\Microsoft\Windows\CurrentVersion\Internet Settings";
     static int fails;
-    static void Expect(bool ok, string what) { Console.WriteLine($"{(ok ? "ok  " : "FAIL")} {what}"); if (!ok) fails++; }
+    static void Expect(bool ok, string what)
+    {
+        Console.WriteLine($"{(ok ? "ok  " : "FAIL")} {what}");
+        if (ok) return;
+        fails++;
+        // Surfaces in the Actions run as an annotation, readable without the full log.
+        Console.WriteLine($"::error title=Windows proxy test::{what} | registry now: {Describe()}");
+    }
+    static string Describe() { var r = Read(); return $"ProxyEnable={r.enable} ProxyServer='{r.server}' ProxyOverride='{r.over}' AutoConfigURL='{r.pac}' backup={File.Exists(Backup)}"; }
 
     static RegistryKey Key() => Registry.CurrentUser.CreateSubKey(Path_, true);
     static (int enable, string server, string over, string pac) Read()
@@ -37,6 +45,7 @@ static class Program
         var original = Read();
         try
         {
+            Console.WriteLine("start: " + Describe());
             File.Delete(Backup);
             var listener = new TcpListener(IPAddress.Loopback, 0); listener.Start();
             int livePort = ((IPEndPoint)listener.LocalEndpoint).Port;
@@ -89,6 +98,11 @@ static class Program
             s2.ConfigureForMode(ProxyMode.Rule, 10809, 10808);
             s2.DisableProxy();
             Expect(Read().enable == 0, "own leftover is not saved as the user's setting");
+        }
+        catch (Exception ex)
+        {
+            fails++;
+            Console.WriteLine($"::error title=Windows proxy test crashed::{ex.GetType().Name}: {ex.Message.Replace('\n', ' ')}");
         }
         finally
         {
