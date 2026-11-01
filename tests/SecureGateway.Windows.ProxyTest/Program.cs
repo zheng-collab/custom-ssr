@@ -45,6 +45,7 @@ static class Program
         var original = Read();
         try
         {
+            Directory.CreateDirectory(AppPaths.DataDir);   // File.Delete throws when the folder is missing
             Console.WriteLine("start: " + Describe());
             File.Delete(Backup);
             var listener = new TcpListener(IPAddress.Loopback, 0); listener.Start();
