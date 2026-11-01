@@ -87,6 +87,7 @@ namespace SecureGateway.UI.ViewModels
             SyncSharedServersCommand = new AsyncRelayCommand(SyncSharedServersAsync);
             ShareServerCommand = new AsyncRelayCommand(ShareServerAsync, () => SelectedServer != null && !SelectedServer.IsShared);
             UnshareServerCommand = new AsyncRelayCommand(UnshareServerAsync, () => SelectedServer != null && SelectedServer.IsShared);
+            RepairInternetCommand = new AsyncRelayCommand(RepairInternetAsync);
 
             LoadConfig();
         }
@@ -281,6 +282,7 @@ namespace SecureGateway.UI.ViewModels
         public ICommand SyncSharedServersCommand { get; }
         public ICommand ShareServerCommand { get; }
         public ICommand UnshareServerCommand { get; }
+        public ICommand RepairInternetCommand { get; }
 
         protected void RefreshCommands()
         {
@@ -454,6 +456,23 @@ namespace SecureGateway.UI.ViewModels
             IsConnecting = false;
             StatusText = "Disconnected";
             ConnectionInfo = "Not connected to any server";
+        }
+
+        /// <summary>
+        /// "Fix internet": for when web pages stop loading because the computer's proxy setting
+        /// still points at SecureGateway. Disconnects if needed, then undoes any leftover setting.
+        /// </summary>
+        private async Task RepairInternetAsync()
+        {
+            bool wasConnected = IsConnected || IsConnecting;
+            if (wasConnected) await DisconnectAsync();
+            bool repaired = ConnectionService.RepairSystemProxy();
+            Logger.Info(repaired ? "Fix internet: removed a leftover proxy setting." : "Fix internet: no leftover proxy setting found.");
+            await ShowMessageAsync("Fix internet",
+                repaired || wasConnected
+                    ? "Done. Your computer no longer sends web traffic to SecureGateway, so browsers connect directly. Click Connect to use the VPN again."
+                    : "Nothing needed fixing: your computer's proxy setting does not point at SecureGateway. If pages still do not load, check your Wi-Fi or network cable.",
+                MessageKind.Info);
         }
 
         private async Task ToggleConnectionAsync()

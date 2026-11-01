@@ -103,3 +103,19 @@ begin
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM v2ray.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := '';
 end;
+
+// Uninstalling while connected (or after a crash) must not leave Windows pointing at the
+// removed engine, or the browser has no internet. Only a setting that points at
+// SecureGateway's own local ports (127.0.0.1:108xx) is switched off; any other proxy stays.
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  Server: String;
+begin
+  if CurUninstallStep = usUninstall then
+    if RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Internet Settings', 'ProxyServer', Server) then
+      if Pos('127.0.0.1:108', Server) = 1 then
+      begin
+        RegWriteDWordValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Internet Settings', 'ProxyEnable', 0);
+        RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Internet Settings', 'ProxyServer');
+      end;
+end;

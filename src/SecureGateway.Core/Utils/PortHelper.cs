@@ -64,6 +64,21 @@ namespace SecureGateway.Utils
             throw new InvalidOperationException("No free local port available.");
         }
 
+        /// <summary>Blocking variant for code that cannot await (startup repair, proxy checks).</summary>
+        /// No await inside, so it cannot deadlock when called on a UI thread.
+        public static bool IsListening(int port, int timeoutMs = 500)
+        {
+            try
+            {
+                using var tcp = new TcpClient();
+                return tcp.ConnectAsync(IPAddress.Loopback, port).Wait(timeoutMs) && tcp.Connected;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         public static async Task<bool> IsListeningAsync(int port, int timeoutMs = 500)
         {
             try

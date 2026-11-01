@@ -60,6 +60,51 @@ namespace SecureGateway.Mac.Platform
                 _configuredServices = new List<string>();
         }
 
+        public bool RepairLeftover()
+        {
+            if (!OperatingSystem.IsMacOS()) return false;
+
+            // Every service, not just the active one: the leftover may be on Wi-Fi while the Mac
+            // is now on Ethernet.
+            var services = Exec("/usr/sbin/networksetup", "-listallnetworkservices")
+                .Split('\n').Skip(1).Select(l => l.Trim().TrimStart('*').Trim()).Where(l => l.Length > 0).ToList();
+
+            var sb = new StringBuilder();
+            foreach (var svc in services)
+            {
+                foreach (var (get, set) in new[] { ("-getwebproxy", "-setwebproxystate"), ("-getsecurewebproxy", "-setsecurewebproxystate"),
+                                                   ("-getsocksfirewallproxy", "-setsocksfirewallproxystate") })
+                {
+                    var info = ParseProxyInfo(ExecArgs("/usr/sbin/networksetup", get, svc));
+                    if (info.enabled && ProxyLeftover.IsStale($"{info.server}:{info.port}", p => SecureGateway.Utils.PortHelper.IsListening(p, 300)))
+                        sb.AppendLine($"networksetup {set} {Quote(svc)} off");
+                }
+            }
+            return sb.Length > 0 && RunShell(sb.ToString());
+        }
+
+        /// <summary>Parses `networksetup -getwebproxy` output ("Enabled: Yes", "Server: …", "Port: …").</summary>
+        public static (bool enabled, string server, string port) ParseProxyInfo(string output)
+        {
+            string Field(string name) => output.Split('\n').Select(l => l.Trim())
+                .FirstOrDefault(l => l.StartsWith(name + ":", StringComparison.OrdinalIgnoreCase))?.Split(':', 2)[1].Trim() ?? "";
+            return (Field("Enabled").Equals("Yes", StringComparison.OrdinalIgnoreCase), Field("Server"), Field("Port"));
+        }
+
+        private static string ExecArgs(string file, params string[] args)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo(file) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
+                foreach (var a in args) psi.ArgumentList.Add(a);
+                using var p = Process.Start(psi);
+                var output = p.StandardOutput.ReadToEnd();
+                p.WaitForExit(5000);
+                return output;
+            }
+            catch { return ""; }
+        }
+
         // ---- service discovery ---------------------------------------------------------------
         private static List<string> GetTargetServices()
         {

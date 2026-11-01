@@ -200,6 +200,11 @@
                      FontFamily="Menlo, Consolas, monospace" FontSize="12" TextWrapping="NoWrap"
                      ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.Name="{loc:T 'Sites that bypass the VPN'}"/>
 
+            <TextBlock Text="{loc:T 'Internet connection'}" Classes="h2" Margin="0,16,0,0"/>
+            <TextBlock Classes="hint"
+                       Text="{loc:T 'If web pages stop loading after the VPN stops, the computer is probably still set to send traffic to SecureGateway. This switches that setting off. SecureGateway also does this automatically when the VPN engine stops or the app restarts.'}"/>
+            <Button Name="BtnFixInternet" Content="{loc:T 'Fix internet'}" HorizontalAlignment="Left" Command="{Binding RepairInternetCommand}"/>
+
             <TextBlock Text="{loc:T 'About'}" Classes="h2" Margin="0,16,0,0"/>
             <TextBlock Classes="hint">
               <Run Text="SecureGateway v"/><Run Text="{Binding AppVersion, Mode=OneTime}"/><Run Text="{loc:T ' for macOS. Supports V2Ray (VMess) and Shadowsocks via the bundled v2ray-core engine.'}"/>

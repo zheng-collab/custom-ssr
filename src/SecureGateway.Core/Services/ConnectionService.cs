@@ -22,6 +22,14 @@ namespace SecureGateway.Services
         private bool _disposed;
         private bool _restartingEngine;
 
+        // Engine-failure handling: the system proxy must never outlive the engine it points at.
+        private readonly object _failureLock = new();
+        private bool _tunnelUp;
+        private ServerProfile _lastServer;
+        private DateTime _lastAutoReconnectUtc = DateTime.MinValue;
+        private int _missedHealthChecks;
+        private static readonly TimeSpan AutoReconnectInterval = TimeSpan.FromMinutes(2);
+
         public ConnectionStats Stats { get; private set; } = new();
         public bool IsConnected => _currentEngine?.Status == EngineStatus.Running;
         public EngineStatus EngineStatus => _currentEngine?.Status ?? EngineStatus.Stopped;
@@ -111,6 +119,7 @@ namespace SecureGateway.Services
         private void OnTunnelUp(ServerProfile original, ServerProfile runtime)
         {
             _systemProxy.ConfigureForMode(_configManager.Config.ProxyMode, runtime.LocalHttpPort, runtime.LocalSocksPort);
+            lock (_failureLock) { _tunnelUp = true; _lastServer = original; _missedHealthChecks = 0; }
 
             // Route the app's own Supabase traffic through the tunnel too (needed on networks
             // that block the login server).
@@ -130,6 +139,7 @@ namespace SecureGateway.Services
             if (_currentEngine == null) return;
 
             _logger.Info("Disconnecting...");
+            lock (_failureLock) _tunnelUp = false;   // a deliberate stop is not a failure
 
             _statsTimer?.Dispose();
             _statsTimer = null;
@@ -276,9 +286,59 @@ namespace SecureGateway.Services
             // During a routing restart the engine goes Stopped -> Starting -> Running in
             // well under a second; only the final state (or an error) is worth showing.
             if (_restartingEngine && e.Status != EngineStatus.Error) return;
+            if (e.Status == EngineStatus.Error && !_restartingEngine && HandleEngineFailure(e.Message))
+                return;
             if (e.Status == EngineStatus.Error)
                 HttpClients.UseProxy(null);
             StatusChanged?.Invoke(this, e);
+        }
+
+        /// <summary>
+        /// The engine died (or stopped answering) while the system proxy pointed at it: release the
+        /// proxy at once so browsers work again, then try one automatic reconnect (at most once per
+        /// two minutes, so a server that keeps failing cannot cause a loop). Returns false when there
+        /// was no live tunnel, i.e. nothing to clean up.
+        /// </summary>
+        private bool HandleEngineFailure(string reason)
+        {
+            ServerProfile server;
+            bool reconnect;
+            lock (_failureLock)
+            {
+                if (!_tunnelUp) return false;
+                _tunnelUp = false;
+                server = _lastServer;
+                reconnect = server != null && !_disposed && DateTime.UtcNow - _lastAutoReconnectUtc > AutoReconnectInterval;
+                if (reconnect) _lastAutoReconnectUtc = DateTime.UtcNow;
+            }
+
+            _logger.Warning($"VPN engine failure: {reason}");
+            try { _systemProxy.DisableProxy(); } catch (Exception ex) { _logger.Error($"Could not restore the system proxy: {ex.Message}"); }
+            TearDownEngine();
+            _logger.Info("System proxy restored, so the browser works without the VPN.");
+
+            StatusChanged?.Invoke(this, new EngineStatusChangedEventArgs(EngineStatus.Error, reconnect
+                ? "The VPN engine stopped unexpectedly. Internet settings were restored; reconnecting..."
+                : "The VPN engine stopped unexpectedly. Internet settings were restored. Click Connect to try again."));
+
+            if (reconnect)
+            {
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(2000);
+                    if (_currentEngine != null || _disposed) return;
+                    _logger.Info($"Reconnecting to {server.Name} automatically...");
+                    await ConnectAsync(server);
+                });
+            }
+            return true;
+        }
+
+        /// <summary>"Fix internet": undo any proxy setting left behind. True if something changed.</summary>
+        public bool RepairSystemProxy()
+        {
+            try { return _systemProxy.RepairLeftover(); }
+            catch (Exception ex) { _logger.Error($"Repair failed: {ex.Message}"); return false; }
         }
 
         private void OnEngineLogReceived(object sender, EngineLogEventArgs e)
@@ -292,6 +352,16 @@ namespace SecureGateway.Services
             var engine = _currentEngine;
             if (engine == null || engine.Status != EngineStatus.Running) return;
             if (state is not ServerProfile server) return;
+
+            // Watchdog: the engine can stop answering without exiting (rare, e.g. after sleep).
+            // Two misses in a row (about 30 s) count as a failure, so one slow moment does not.
+            if (await PortHelper.IsListeningAsync(server.LocalHttpPort, 1500))
+                _missedHealthChecks = 0;
+            else if (++_missedHealthChecks >= 2)
+            {
+                HandleEngineFailure("the engine stopped answering on its local port");
+                return;
+            }
 
             try
             {

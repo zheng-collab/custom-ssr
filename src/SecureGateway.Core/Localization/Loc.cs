@@ -312,6 +312,16 @@ namespace SecureGateway.Localization
             ["V2Ray stopped."] = "V2Ray 已停止。",
             ["Connection failed: {0}"] = "连接失败：{0}",
             ["Connection lost while applying the routing change. Please reconnect."] = "应用路由更改时连接中断，请重新连接。",
+            ["The VPN engine stopped unexpectedly. Internet settings were restored; reconnecting..."] = "VPN 引擎意外停止。网络设置已恢复，正在重新连接…",
+            ["The VPN engine stopped unexpectedly. Internet settings were restored. Click Connect to try again."] = "VPN 引擎意外停止。网络设置已恢复，请点击“连接”重试。",
+            ["Internet connection"] = "网络连接",
+            ["If web pages stop loading after the VPN stops, the computer is probably still set to send traffic to SecureGateway. This switches that setting off. SecureGateway also does this automatically when the VPN engine stops or the app restarts."] =
+                "如果 VPN 停止后网页打不开，通常是电脑仍设置为把流量发往 SecureGateway。点击下面的按钮可关闭该设置。VPN 引擎停止或程序重新启动时，SecureGateway 也会自动执行这一步。",
+            ["Fix internet"] = "修复网络",
+            ["Done. Your computer no longer sends web traffic to SecureGateway, so browsers connect directly. Click Connect to use the VPN again."] =
+                "已完成。电脑不再把网页流量发往 SecureGateway，浏览器会直接上网。如需再次使用 VPN，请点击“连接”。",
+            ["Nothing needed fixing: your computer's proxy setting does not point at SecureGateway. If pages still do not load, check your Wi-Fi or network cable."] =
+                "无需修复：电脑的代理设置没有指向 SecureGateway。如果网页仍打不开，请检查 Wi-Fi 或网线。",
         };
     }
 }

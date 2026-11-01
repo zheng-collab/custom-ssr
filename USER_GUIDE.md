@@ -540,7 +540,7 @@ It installs the latest `shadowsocks-rust` server as a static binary from GitHub 
 |---------|----------|
 | Websites still accessible after connecting | Switch proxy mode from "Direct" to "Global". |
 | Some apps bypass the proxy | Some apps don't respect system proxy settings. Configure them manually to use `127.0.0.1:10808` (SOCKS5). |
-| Proxy not restored after disconnect | Restart the app or manually reset proxy in Windows Settings > Network & Internet > Proxy. |
+| Proxy not restored / browser has no internet after the VPN stops | Click Settings → Fix internet; see "Browser has no internet after the VPN stops" below. |
 
 ### General issues
 
@@ -549,6 +549,25 @@ It installs the latest `shadowsocks-rust` server as a static binary from GitHub 
 | App won't start | Ensure only one instance is running (check Task Manager). |
 | High latency | Try a different server or transport (WebSocket often performs better than TCP). |
 | Logs show errors | Check the Log tab for detailed error messages. Log files are in `%APPDATA%\SecureGateway\logs\`. |
+
+### Browser has no internet after the VPN stops ("Fix internet")
+
+**Why it happens.** While connected, SecureGateway points the computer's proxy setting at the local VPN engine. If the engine stops unexpectedly (after sleep, a network change, or antivirus interference), or the app is ended abruptly (Task Manager, a crash, a power cut, a forced Windows Update restart), that setting can be left behind, pointing at an engine that no longer exists. The browser then cannot open any page.
+
+**What the app does on its own (from v1.0.9).**
+- **Engine stops:** the proxy setting is switched off at once, so the browser works again, and the app reconnects once by itself. Home shows "The VPN engine stopped unexpectedly. Internet settings were restored…". If it stops again within two minutes, it does not keep retrying; click Connect.
+- **Every start:** the app checks for and undoes a setting left by the previous run, even after a crash or power cut. Your own proxy settings from before connecting, such as a company proxy, come back exactly.
+- **While connected:** every 15 seconds it checks that the engine still answers, and releases the proxy if it does not.
+- **Uninstall:** the leftover setting is removed too.
+
+**If it still happens.** Open SecureGateway and click **Settings → Fix internet**, or right-click the tray icon (menu bar on macOS) and choose **Fix internet**. The app disconnects, switches the leftover setting off and confirms. Click Connect when you want the VPN again.
+
+**If the app will not open.**
+- **Windows:** Settings → Network & internet → Proxy → Manual proxy setup → turn off **Use a proxy server**. Or paste this into PowerShell (no admin needed). It only switches off a proxy that points at this computer, never a company proxy:
+  ```powershell
+  $k='HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings'; if ((Get-ItemProperty $k).ProxyServer -like '127.0.0.1:*') { Set-ItemProperty $k ProxyEnable 0; Remove-ItemProperty $k ProxyServer }; 'fixed'
+  ```
+- **macOS:** System Settings → Network → your network (Wi-Fi or Ethernet) → Details → Proxies → turn off Web proxy (HTTP), Secure web proxy (HTTPS) and SOCKS proxy.
 
 ## 16. Security Notes
 
@@ -1099,7 +1118,7 @@ Startup Script 会将管理员密码保存在 Vultr 中；请使用一个仅拥�
 |------|----------|
 | 连接后仍可正常访问网站 | 将代理模式从"直连"切换为"全局"。 |
 | 某些应用绕过代理 | 部分应用不遵循系统代理设置，需手动配置使用 `127.0.0.1:10808`（SOCKS5）。 |
-| 断开后代理未恢复 | 重启应用或手动在 Windows 设置 > 网络和 Internet > 代理 中重置。 |
+| 断开后代理未恢复 / 浏览器上不了网 | 点击 设置 → 修复网络，见下方"VPN 停止后浏览器上不了网"。 |
 
 ### 一般问题
 
@@ -1108,6 +1127,25 @@ Startup Script 会将管理员密码保存在 Vultr 中；请使用一个仅拥�
 | 应用无法启动 | 确保只有一个实例在运行（检查任务管理器）。 |
 | 延迟过高 | 尝试不同的服务器或传输方式（WebSocket 通常比 TCP 性能更好）。 |
 | 日志显示错误 | 查看日志页的详细错误信息。日志文件在 `%APPDATA%\SecureGateway\logs\` 目录。 |
+
+### VPN 停止后浏览器上不了网（修复网络）
+
+**原因：** 连接时，SecureGateway 会把电脑的代理设置指向本机的 VPN 引擎。如果引擎意外停止（电脑睡眠后、网络切换、杀毒软件拦截），或程序被强行结束（任务管理器、死机、断电、Windows 更新强制重启），这个设置可能遗留下来，而它指向的引擎已经不存在，浏览器就打不开任何网页。
+
+**程序会自动处理（v1.0.9 起）：**
+- **引擎停止时：** 立即关闭代理设置，浏览器马上恢复上网，并自动重新连接一次。主页会显示"VPN 引擎意外停止。网络设置已恢复……"。两分钟内再次停止则不再自动重试，请点击"连接"。
+- **每次启动时：** 检查并清除上次遗留的设置，即使上次是死机或断电。连接前您原来的代理设置（例如公司代理）会被原样恢复。
+- **连接期间：** 每 15 秒检查引擎是否仍在响应，没有响应就释放代理设置。
+- **卸载时：** 同样会清除遗留设置。
+
+**如果仍然遇到：** 打开 SecureGateway，点击 **设置 → 修复网络（Fix internet）**，或右键托盘图标（macOS 为菜单栏图标）选择 **修复网络**。程序会断开 VPN、关闭遗留设置并提示完成。需要 VPN 时再点击"连接"。
+
+**程序打不开时：**
+- **Windows：** 设置 → 网络和 Internet → 代理 → 手动设置代理 → 关闭 **使用代理服务器**。或在 PowerShell（无需管理员）中粘贴下面一行，它只会关闭指向本机的代理，不会影响公司代理：
+  ```powershell
+  $k='HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings'; if ((Get-ItemProperty $k).ProxyServer -like '127.0.0.1:*') { Set-ItemProperty $k ProxyEnable 0; Remove-ItemProperty $k ProxyServer }; 'fixed'
+  ```
+- **macOS：** 系统设置 → 网络 → 当前网络（Wi-Fi 或以太网）→ 详细信息 → 代理 → 关闭网页代理（HTTP）、安全网页代理（HTTPS）和 SOCKS 代理。
 
 ## 16. 安全须知
 

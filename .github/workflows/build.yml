@@ -55,6 +55,11 @@ jobs:
           dotnet-version: "8.0.x"
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
+      # Real registry, real WinINET: leftovers repaired, user's proxy restored exactly,
+      # a proxy that is not ours never touched. A failure here blocks the release.
+      - name: Windows proxy test
+        shell: pwsh
+        run: dotnet run --project tests/SecureGateway.Windows.ProxyTest -c Release
       - name: Use the tag as the product version
         if: startsWith(github.ref, 'refs/tags/v')
         shell: bash

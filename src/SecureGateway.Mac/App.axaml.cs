@@ -59,6 +59,9 @@ namespace SecureGateway.Mac
         {
             bool startMinimized = args.Contains("--minimized");
 
+            // Undo a proxy setting a previous run left behind (crash, force quit, power cut).
+            await Task.Run(() => { try { new MacSystemProxyService().RepairLeftover(); } catch { } });
+
             _authService = new AuthService(new MacCredentialStore());
             try
             {
@@ -119,6 +122,11 @@ namespace SecureGateway.Mac
             _connectItem = new NativeMenuItem(Loc.T("Connect"));
             _connectItem.Click += (_, _) => _mainWindow?.ViewModel.ToggleConnectionCommand.Execute(null);
             menu.Add(_connectItem);
+            menu.Add(new NativeMenuItemSeparator());
+
+            var fix = new NativeMenuItem(Loc.T("Fix internet"));
+            fix.Click += (_, _) => _mainWindow?.ViewModel.RepairInternetCommand.Execute(null);
+            menu.Add(fix);
             menu.Add(new NativeMenuItemSeparator());
 
             var quit = new NativeMenuItem(Loc.T("Quit SecureGateway"));

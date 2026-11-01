@@ -161,6 +161,21 @@ namespace SecureGateway.Mac.Smoke
                 Expect(!RoutingOptions.From(cfg).Equals(RoutingOptions.From(new AppConfig { ProxyMode = ProxyMode.Global })), "RoutingOptions inequality (mode changed)");
             });
 
+            Check("Leftover proxy detection", () =>
+            {
+                Func<int, bool> nothingListens = _ => false, all = _ => true;
+                Expect(SecureGateway.Platform.ProxyLeftover.IsStale("127.0.0.1:10809", nothingListens), "127.0.0.1 port with nothing listening = leftover");
+                Expect(SecureGateway.Platform.ProxyLeftover.IsStale("localhost:10809", nothingListens), "localhost form recognised");
+                Expect(!SecureGateway.Platform.ProxyLeftover.IsStale("127.0.0.1:10809", all), "a local proxy that still answers is left alone");
+                Expect(!SecureGateway.Platform.ProxyLeftover.IsStale("proxy.company.com:8080", nothingListens), "company proxy never touched");
+                Expect(!SecureGateway.Platform.ProxyLeftover.IsStale("", nothingListens) && !SecureGateway.Platform.ProxyLeftover.IsStale(null, nothingListens), "empty setting ignored");
+                Expect(SecureGateway.Platform.ProxyLeftover.LocalPort("http=127.0.0.1:10809;https=127.0.0.1:10809") == 10809, "per-protocol form parsed");
+                var info = SecureGateway.Mac.Platform.MacSystemProxyService.ParseProxyInfo("Enabled: Yes\nServer: 127.0.0.1\nPort: 10809\nAuthenticated Proxy Enabled: 0\n");
+                Expect(info.enabled && info.server == "127.0.0.1" && info.port == "10809", "macOS networksetup output parsed");
+                var off = SecureGateway.Mac.Platform.MacSystemProxyService.ParseProxyInfo("Enabled: No\nServer:\nPort: 0\n");
+                Expect(!off.enabled, "macOS disabled proxy parsed");
+            });
+
             Check("ServerEditWindow", () =>
             {
                 var w = new ServerEditWindow(new ServerProfile { Name = "Test", Address = "203.0.113.5" });

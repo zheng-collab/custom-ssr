@@ -52,6 +52,11 @@ namespace SecureGateway
 
             base.OnStartup(e);
 
+            // Undo a proxy setting a previous run left behind (crash, killed process, power cut),
+            // before anything else: otherwise the browser stays offline until the user connects.
+            // After the single-instance check, so a second launch never touches a live session.
+            try { new SystemProxyService().RepairLeftover(); } catch { }
+
             bool startMinimized = Array.IndexOf(e.Args, "--minimized") >= 0;
 
             _authService = new AuthService(new DpapiCredentialStore());
@@ -183,6 +188,12 @@ namespace SecureGateway
             var connectItem = new System.Windows.Forms.ToolStripMenuItem(Loc.T("Connect"));
             connectItem.Click += (s, e) => _mainWindow?.ViewModel.ToggleConnectionCommand.Execute(null);
             menu.Items.Add(connectItem);
+
+            menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+
+            var fixItem = new System.Windows.Forms.ToolStripMenuItem(Loc.T("Fix internet"));
+            fixItem.Click += (s, e) => _mainWindow?.ViewModel.RepairInternetCommand.Execute(null);
+            menu.Items.Add(fixItem);
 
             menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
 
